@@ -101,7 +101,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             (state == State.MainSale) &&
             (weiToBuy > 0)
         );
-        weiToBuy = min(weiToBuy, getWeiAllowedFromAddress(recipient));
+        weiToBuy = min(weiToBuy, getWeiAllowedFromAddress(msg.sender));
         require(weiToBuy > 0);
         weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(totalRaised));
         require(weiToBuy > 0);
@@ -109,6 +109,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         uint256 tokenAmount = getTokenAmountForEther(weiToBuy);
         uint256 weiToReturn = msg.value.sub(weiToBuy);
         totalRaised = totalRaised.add(weiToBuy);
+        raisedByAddress[msg.sender] = raisedByAddress[msg.sender].add(weiToBuy);
         if (weiToReturn > 0) {
             msg.sender.transfer(weiToReturn);
             ChangeReturn(msg.sender, weiToReturn);
@@ -122,26 +123,30 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         etherRateUsd = _rate;
     }
 
+    /* ****************
+     * Internal methods
+     */
+
     // TESTED
-    function convertUsdToEther(uint256 usdAmount) public returns (uint256) {
+    function convertUsdToEther(uint256 usdAmount) internal returns (uint256) {
         return usdAmount.mul(1 ether).div(etherRateUsd);
     }
 
     // TESTED
-    function getTokenRateEther() public returns (uint256) {
+    function getTokenRateEther() internal returns (uint256) {
         // div(1000) because 3 decimals in tokenRateUsd
         return convertUsdToEther(tokenRateUsd).div(1000);
     }
 
     // TESTED
-    function getTokenAmountForEther(uint256 weiAmount) public returns (uint256) {
+    function getTokenAmountForEther(uint256 weiAmount) internal returns (uint256) {
         return weiAmount
             .div(getTokenRateEther())
             .mul(10 ** token.decimals());
     }
 
     // TESTED
-    function isReadyToFinalize() public returns (bool) {
+    function isReadyToFinalize() internal returns (bool) {
         return(
             (totalRaised >= convertUsdToEther(saleCapUsd)) ||
             (getCurrentState() == State.MainSaleDone)
@@ -149,21 +154,22 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     // TESTED
-    function min(uint256 a, uint256 b) public returns (uint256) {
+    function min(uint256 a, uint256 b) internal returns (uint256) {
         return (a < b) ? a: b;
     }
 
     // TESTED
-    function max(uint256 a, uint256 b) public returns (uint256) {
+    function max(uint256 a, uint256 b) internal returns (uint256) {
         return (a > b) ? a: b;
     }
 
     // TESTED
-    function ceil(uint a, uint b) public returns (uint) {
+    function ceil(uint a, uint b) internal returns (uint) {
         return ((a + b - 1) / b) * b;
     }
 
-    function getWeiAllowedFromAddress(address _sender) private returns (uint256) {
+    // TESTED
+    function getWeiAllowedFromAddress(address _sender) internal returns (uint256) {
         uint256 secondsElapsed = getTime().sub(saleStartDate);
         uint256 fullHours = ceil(secondsElapsed, 3600) / 3600;
         fullHours = max(1, fullHours);
@@ -171,7 +177,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         return weiLimit.sub(raisedByAddress[_sender]);
     }
 
-    function getTime() private returns (uint256) {
+    function getTime() internal returns (uint256) {
         // Just returns `now` value
         // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
         // to allow testing contract behaviour at different time moments
@@ -179,12 +185,12 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     // TESTED
-    function getCurrentState() public returns (State) {
+    function getCurrentState() internal returns (State) {
         return getStateForTime(getTime());
     }
 
     // TESTED
-    function getStateForTime(uint256 unixTime) public returns (State) {
+    function getStateForTime(uint256 unixTime) internal returns (State) {
         if (isFinalized) {
             // This could be before end date of ICO
             // if hard cap is reached
@@ -199,10 +205,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         return State.MainSaleDone;
     }
 
-    /* ****************
-     * Internal methods
-     */
-
+    // TEST
     function finalize() private {
         if (!isFinalized) {
             require(isReadyToFinalize());
@@ -212,12 +215,14 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         }
     }
 
+    // TEST
     function mintTeamTokens() private {
         // div by 1000 because of 3 decimals digits in teamTokenRatio
         var tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
         token.mint(teamTokenWallet, tokenAmount);
     }
 
+    // TEST
     function finalizeByAdmin() public onlyOwner {
         finalize();
     }

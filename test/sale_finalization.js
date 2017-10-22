@@ -7,10 +7,6 @@ let big = require('./util/bigNum.js').big;
 
 let {deployTestContracts} = require('./util/deploy.js');
 
-function getTokenRateEther() {
-    return data.TOKEN_RATE_USD.mul(data.ETHER).divToInt(data.ETHER_RATE_USD).divToInt(1000);
-}
-
 contract('Ethearnal Rep Token Crowdsale [Finalization]', function(accounts) {
     let {tokenContract, saleContract, teamTokenWallet} = {};
 
@@ -21,14 +17,14 @@ contract('Ethearnal Rep Token Crowdsale [Finalization]', function(accounts) {
     it('isReadyToFinalize is false [before end of main sale]', async () => {
         await saleContract.setTime(data.SALE_START_DATE);
         false.should.be.equal(
-            await saleContract.isReadyToFinalize.call()
+            await saleContract.isReadyToFinalizeProxy.call()
         );
     });
 
     it('isReadyToFinalize is true [main sale ended]', async () => {
         await saleContract.setTime(data.SALE_END_DATE);
         true.should.be.equal(
-            await saleContract.isReadyToFinalize.call()
+            await saleContract.isReadyToFinalizeProxy.call()
         );
     });
 
@@ -38,7 +34,7 @@ contract('Ethearnal Rep Token Crowdsale [Finalization]', function(accounts) {
         let weiAmount = data.convertUsdToEther(2000);
         await saleContract.sendTransaction({value: weiAmount});
         true.should.be.equal(
-            await saleContract.isReadyToFinalize.call()
+            await saleContract.isReadyToFinalizeProxy.call()
         );
     });
 

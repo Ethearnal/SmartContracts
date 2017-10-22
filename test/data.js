@@ -5,6 +5,7 @@ const DECIMALS = big(18);
 const ETHER = big(10).toPower(18);
 const ETHER_RATE_USD = big(300);
 const TOKEN_RATE_USD = big(1 * 1000).divToInt(2);
+const HOUR_LIMIT_BY_ADDRESS_USD = 1000
 
 function convertUsdToEther(usdAmount) {
     return big(usdAmount).mul(ETHER).divToInt(ETHER_RATE_USD)
@@ -36,4 +37,5 @@ module.exports = {
     getTokenRateEther: getTokenRateEther,
     convertUsdToEther: convertUsdToEther,
     TEAM_TOKEN_RATIO: big(1 * 1000).divToInt(3),
+    HOUR_LIMIT_BY_ADDRESS_WEI: convertUsdToEther(HOUR_LIMIT_BY_ADDRESS_USD)
 }
