@@ -1,0 +1,11 @@
+*.pyc
+*.swp
+*.swo
+*.orig
+*.egg-info/
+
+# development files
+/build/
+/node_modules/
+/test_disabled/
+/var/
