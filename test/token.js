@@ -5,13 +5,13 @@ require('chai')
 let data = require('./data.js');
 let big = require('./util/bigNum.js').big;
 
-let {deployTestContracts} = require('./util/deploy.js');
+let {deployTestTokenContract} = require('./util/deploy.js');
 
-contract('Ethearnal Rep Token [basic properties]', function(accounts) {
+contract('Ethearnal Rep Token [basic features]', function(accounts) {
     let {tokenContract} = {};
 
     beforeEach(async () => {
-        ({tokenContract} = await deployTestContracts(accounts));
+        tokenContract = await deployTestTokenContract();
     });
 
     it('Name of token', async () => {

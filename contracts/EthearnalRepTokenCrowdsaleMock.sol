@@ -17,6 +17,7 @@ contract EthearnalRepTokenCrowdsaleMock is EthearnalRepTokenCrowdsale {
         // emptiness
     }
 
+    // Debug method to redefine current time
     function setTime(uint256 _time) public {
         mockTime = _time;
     }
@@ -27,5 +28,10 @@ contract EthearnalRepTokenCrowdsaleMock is EthearnalRepTokenCrowdsale {
         } else {
             return now;
         } 
+    }
+
+    // Debug method to redefine hard cap
+    function setSaleCapUsd(uint256 _usdAmount) public {
+        saleCapUsd = _usdAmount;
     }
 }

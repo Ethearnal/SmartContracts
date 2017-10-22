@@ -106,9 +106,9 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(totalRaised));
         require(weiToBuy > 0);
 
-        totalRaised = totalRaised.add(weiToBuy);
         uint256 tokenAmount = getTokenAmountForEther(weiToBuy);
         uint256 weiToReturn = msg.value.sub(weiToBuy);
+        totalRaised = totalRaised.add(weiToBuy);
         if (weiToReturn > 0) {
             msg.sender.transfer(weiToReturn);
             ChangeReturn(msg.sender, weiToReturn);
@@ -117,53 +117,56 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         TokenPurchase(msg.sender, recipient, weiToBuy, tokenAmount);
     }
 
-    function finalizeCrowdsaleByAdmin() public onlyOwner {
-        finalizeCrowdsale();
-    }
-
     function setEtherRateUsd(uint256 _rate) public {
         require(_rate > 0);
         etherRateUsd = _rate;
     }
-
-    /* ***************
-     * Private methods
-     */
 
     // TESTED
     function convertUsdToEther(uint256 usdAmount) public returns (uint256) {
         return usdAmount.mul(1 ether).div(etherRateUsd);
     }
 
+    // TESTED
     function getTokenRateEther() public returns (uint256) {
         // div(1000) because 3 decimals in tokenRateUsd
         return convertUsdToEther(tokenRateUsd).div(1000);
     }
 
-    function getTokenAmountForEther(uint256 weiAmount) private returns (uint256) {
-        // 1000 because 3 decimal in tokenRateUsd
-        return weiAmount.div(getTokenRateEther())
+    // TESTED
+    function getTokenAmountForEther(uint256 weiAmount) public returns (uint256) {
+        return weiAmount
+            .div(getTokenRateEther())
             .mul(10 ** token.decimals());
     }
 
-    function isReadyToFinalize() private returns (bool) {
-        State state = getCurrentState();
+    // TESTED
+    function isReadyToFinalize() public returns (bool) {
         return(
             (totalRaised >= convertUsdToEther(saleCapUsd)) ||
-            (state == State.MainSaleDone)
+            (getCurrentState() == State.MainSaleDone)
         );
     }
 
-    function min(uint256 a, uint256 b) private returns (uint256) {
+    // TESTED
+    function min(uint256 a, uint256 b) public returns (uint256) {
         return (a < b) ? a: b;
     }
-    function ceil(uint a, uint b) private returns (uint) {
+
+    // TESTED
+    function max(uint256 a, uint256 b) public returns (uint256) {
+        return (a > b) ? a: b;
+    }
+
+    // TESTED
+    function ceil(uint a, uint b) public returns (uint) {
         return ((a + b - 1) / b) * b;
     }
 
     function getWeiAllowedFromAddress(address _sender) private returns (uint256) {
         uint256 secondsElapsed = getTime().sub(saleStartDate);
         uint256 fullHours = ceil(secondsElapsed, 3600) / 3600;
+        fullHours = max(1, fullHours);
         uint256 weiLimit = fullHours * convertUsdToEther(hourLimitByAddressUsd);
         return weiLimit.sub(raisedByAddress[_sender]);
     }
@@ -175,11 +178,13 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         return now;
     }
 
-    function getCurrentState() private returns (State) {
+    // TESTED
+    function getCurrentState() public returns (State) {
         return getStateForTime(getTime());
     }
 
-    function getStateForTime(uint256 unixTime) private returns (State) {
+    // TESTED
+    function getStateForTime(uint256 unixTime) public returns (State) {
         if (isFinalized) {
             // This could be before end date of ICO
             // if hard cap is reached
@@ -194,18 +199,26 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         return State.MainSaleDone;
     }
 
-    function mintTeamTokens() private {
-        // div by 1000 because of 3 decimals digits in teamTokenRatio
-        var tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
-        token.mint(teamTokenWallet, tokenAmount);
-    }
+    /* ****************
+     * Internal methods
+     */
 
-    function finalizeCrowdsale() private {
+    function finalize() private {
         if (!isFinalized) {
             require(isReadyToFinalize());
             isFinalized = true;
             mintTeamTokens();
             token.unlock();
         }
+    }
+
+    function mintTeamTokens() private {
+        // div by 1000 because of 3 decimals digits in teamTokenRatio
+        var tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
+        token.mint(teamTokenWallet, tokenAmount);
+    }
+
+    function finalizeByAdmin() public onlyOwner {
+        finalize();
     }
 }

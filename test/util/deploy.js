@@ -19,13 +19,21 @@ async function deployTestContracts(accounts) {
         treasuryWallet.address,
         teamTokenWallet
     );
+    tokenContract.transferOwnership(saleContract.address);
     await saleContract.setEtherRateUsd(data.ETHER_RATE_USD);
     return {
         tokenContract: tokenContract,
-        saleContract: saleContract
+        saleContract: saleContract,
+        teamTokenWallet: teamTokenWallet
     }
 }
 
+async function deployTestTokenContract() {
+    let tokenContract = await EthearnalRepToken.new();
+    return tokenContract;
+}
+
 module.exports = {
-    deployTestContracts: deployTestContracts
+    deployTestContracts: deployTestContracts,
+    deployTestTokenContract: deployTestTokenContract
 }
