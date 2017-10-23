@@ -2,7 +2,7 @@ pragma solidity ^0.4.15;
 
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './EthearnalRepToken.sol';
-import './TreasuryWallet.sol';
+import './Treasury.sol';
 
 
 contract EthearnalRepTokenCrowdsale is MultiOwnable {
@@ -59,7 +59,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     uint256 hourLimitByAddressUsd = 1000;
 
     // Wallet to store all raised money
-    TreasuryWallet public treasuryWallet = TreasuryWallet(0x0);
+    Treasury public treasuryContract = Treasury(0x0);
 
     /* *******
      * Events
@@ -75,15 +75,15 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     function EthearnalRepTokenCrowdsale(
         address[] _owners,
         address _token,
-        address _treasuryWallet,
+        address _treasuryContract,
         address _teamTokenWallet
     ) {
         require(_owners.length > 1);
         require(_token != 0x0);
-        require(_treasuryWallet != 0x0);
+        require(_treasuryContract != 0x0);
         require(_teamTokenWallet != 0x0);
         token = EthearnalRepToken(_token);
-        treasuryWallet = TreasuryWallet(_treasuryWallet);
+        treasuryContract = Treasury(_treasuryContract);
         teamTokenWallet = _teamTokenWallet;
         setupOwners(_owners);
     }
@@ -217,7 +217,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             isFinalized = true;
             mintTeamTokens();
             token.unlock();
-            //treasuryWallet.unlock();
+            //treasuryContract.unlock();
         }
     }
 
