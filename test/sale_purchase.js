@@ -8,7 +8,7 @@ let {etherUsedForTx} = require('./util/gas.js');
 
 let {deployTestContracts} = require('./util/deploy.js');
 
-contract('Ethearnal Rep Token Crowdsale [Finalization]', function(accounts) {
+contract('Crowdsale [Finalization]', function(accounts) {
     let {tokenContract, saleContract} = {};
 
     beforeEach(async () => {

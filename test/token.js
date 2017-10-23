@@ -7,7 +7,7 @@ let big = require('./util/bigNum.js').big;
 
 let {deployTestTokenContract} = require('./util/deploy.js');
 
-contract('Ethearnal Rep Token [basic features]', function(accounts) {
+contract('Token [basic features]', function(accounts) {
     let {tokenContract} = {};
 
     beforeEach(async () => {

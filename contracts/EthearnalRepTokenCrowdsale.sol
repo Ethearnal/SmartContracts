@@ -118,9 +118,14 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         TokenPurchase(msg.sender, recipient, weiToBuy, tokenAmount);
     }
 
-    function setEtherRateUsd(uint256 _rate) public {
+    function setEtherRateUsd(uint256 _rate) public onlyOwner {
         require(_rate > 0);
         etherRateUsd = _rate;
+    }
+
+    // TEST
+    function finalizeByAdmin() public onlyOwner {
+        finalize();
     }
 
     /* ****************
@@ -205,25 +210,21 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         return State.MainSaleDone;
     }
 
-    // TEST
+    // TESTED
     function finalize() private {
         if (!isFinalized) {
             require(isReadyToFinalize());
             isFinalized = true;
             mintTeamTokens();
             token.unlock();
+            //treasuryWallet.unlock();
         }
     }
 
-    // TEST
+    // TESTED
     function mintTeamTokens() private {
         // div by 1000 because of 3 decimals digits in teamTokenRatio
         var tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
         token.mint(teamTokenWallet, tokenAmount);
-    }
-
-    // TEST
-    function finalizeByAdmin() public onlyOwner {
-        finalize();
     }
 }
