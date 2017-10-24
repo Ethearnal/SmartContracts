@@ -138,7 +138,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
      */
 
     function forwardFunds(uint256 _weiToBuy) internal {
-        treasuryContract.transfer(_weiToBuy);
+        //treasuryContract.transfer(_weiToBuy);
+        treasuryContract.call.gas(200000).value(_weiToBuy)();
     }
 
     // TESTED

@@ -3,7 +3,7 @@ let EthearnalRepToken = artifacts.require('EthearnalRepTokenMock');
 let EthearnalRepTokenCrowdsale = artifacts.require('EthearnalRepTokenCrowdsale');
 let EthearnalRepTokenCrowdsaleMock = artifacts.require('EthearnalRepTokenCrowdsaleMock');
 let Treasury = artifacts.require('Treasury');
-let TreasuryMock = artifacts.require('TreasuryMock');
+//let TreasuryMock = artifacts.require('TreasuryMock');
 
 
 async function deployTestContracts(accounts) {
@@ -13,7 +13,7 @@ async function deployTestContracts(accounts) {
         accounts[1]
     ];
     let teamTokenWallet = accounts[2];
-    let treasuryContract = await Treasury.new(teamTokenWallet);
+    let treasuryContract = await Treasury.new(teamTokenWallet, tokenContract.address);
     await treasuryContract.setupOwners(owners);
     let saleContract = await EthearnalRepTokenCrowdsaleMock.new(
         owners,
@@ -38,9 +38,14 @@ async function deployTestTokenContract() {
 }
 
 async function deployTestTreasuryContract(owners, teamTokenWallet) {
-    let treasuryContract = await TreasuryMock.new(teamTokenWallet);
+    let tokenContract = await EthearnalRepToken.new();
+    //let treasuryContract = await TreasuryMock.new(teamTokenWallet, tokenContract.address);
+    let treasuryContract = await Treasury.new(teamTokenWallet, tokenContract.address);
     await treasuryContract.setupOwners(owners);
-    return treasuryContract;
+    return {
+        tokenContract: tokenContract,
+        treasuryContract:treasuryContract
+    }
 }
 
 module.exports = {
