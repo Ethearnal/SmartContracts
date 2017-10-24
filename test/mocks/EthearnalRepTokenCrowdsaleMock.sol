@@ -1,6 +1,6 @@
 pragma solidity ^0.4.15;
 
-import './EthearnalRepTokenCrowdsale.sol';
+import '../../contracts/EthearnalRepTokenCrowdsale.sol';
 
 
 contract EthearnalRepTokenCrowdsaleMock is EthearnalRepTokenCrowdsale {

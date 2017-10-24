@@ -33,4 +33,14 @@ contract('Token [basic features]', function(accounts) {
             await tokenContract.totalSupply()
         );
     });
+
+    it('records last movement', async () => {
+        await tokenContract.mint(accounts[0], data.TOKEN_RATE_ETHER);
+        await tokenContract.setTime(data.SALE_START_DATE);
+        await tokenContract.unlock();
+        await tokenContract.transfer(accounts[1], data.TOKEN_RATE_ETHER);
+        data.SALE_START_DATE.should.be.bignumber.equal(
+            await tokenContract.lastMovement(accounts[0])
+        );
+    })
 });

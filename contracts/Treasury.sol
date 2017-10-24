@@ -7,9 +7,6 @@ import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 contract Treasury is MultiOwnable {
     using SafeMath for uint256;
 
-    // Total amount of ether came from crowdsale contract
-    uint256 public weiRaised = 0;
-
     // Total amount of ether withdrawed
     uint256 public weiWithdrawed = 0;
 
@@ -28,6 +25,8 @@ contract Treasury is MultiOwnable {
     // Amount of ether that could be withdrawed each withdraw iteration
     uint256 public withdrawChunk = 0;
 
+    event Deposit(uint256 amount);
+
     function Treasury(address _teamWallet) public {
         require(_teamWallet != 0x0);
         teamWallet = _teamWallet;
@@ -36,7 +35,7 @@ contract Treasury is MultiOwnable {
     // TESTED
     function() public payable {
         require(msg.value > 0);
-        weiRaised = weiRaised.add(msg.value);
+        Deposit(msg.value);
     }
 
     // TESTED
@@ -51,7 +50,7 @@ contract Treasury is MultiOwnable {
     function setCrowdsaleFinished() public {
         require(crowdsaleContract != address(0x0));
         require(msg.sender == address(crowdsaleContract));
-        withdrawChunk = weiRaised.div(10);
+        withdrawChunk = getWeiRaised().div(10);
         weiUnlocked = withdrawChunk;
         isCrowdsaleFinished = true;
     }
@@ -62,5 +61,9 @@ contract Treasury is MultiOwnable {
         require(weiUnlocked > weiWithdrawed);
         teamWallet.transfer(weiUnlocked.sub(weiWithdrawed));
         weiWithdrawed = weiUnlocked;
+    }
+
+    function getWeiRaised() public returns(uint256) {
+        return crowdsaleContract.weiRaised();
     }
 }
