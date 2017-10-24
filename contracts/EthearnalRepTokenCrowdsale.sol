@@ -15,6 +15,9 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     // Token Contract
     EthearnalRepToken public token;
 
+    // Total Wei Raised
+    uint256 public weiRaised = 0;
+
     // Ethereum rate, how much USD does 1 ether cost
     // The actual value is set by setEtherRateUsd
     uint256 etherRateUsd = 300;
@@ -105,8 +108,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(weiToBuy > 0);
         weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(totalRaised));
         require(weiToBuy > 0);
-
         uint256 tokenAmount = getTokenAmountForEther(weiToBuy);
+        require(tokenAmount > 0);
         uint256 weiToReturn = msg.value.sub(weiToBuy);
         totalRaised = totalRaised.add(weiToBuy);
         raisedByAddress[msg.sender] = raisedByAddress[msg.sender].add(weiToBuy);
@@ -114,7 +117,9 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             msg.sender.transfer(weiToReturn);
             ChangeReturn(msg.sender, weiToReturn);
         }
-        token.mint(recipient, tokenAmount);
+        assert(token.mint(recipient, tokenAmount));
+        weiRaised = weiRaised.add(weiToBuy);
+        forwardFunds(weiToBuy);
         TokenPurchase(msg.sender, recipient, weiToBuy, tokenAmount);
     }
 
@@ -131,6 +136,10 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     /* ****************
      * Internal methods
      */
+
+    function forwardFunds(uint256 _weiToBuy) internal {
+        treasuryContract.transfer(_weiToBuy);
+    }
 
     // TESTED
     function convertUsdToEther(uint256 usdAmount) internal returns (uint256) {
