@@ -15,9 +15,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     // Token Contract
     EthearnalRepToken public token;
 
-    // Total Wei Raised
-    uint256 public weiRaised = 0;
-
     // Ethereum rate, how much USD does 1 ether cost
     // The actual value is set by setEtherRateUsd
     uint256 etherRateUsd = 300;
@@ -118,7 +115,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             ChangeReturn(msg.sender, weiToReturn);
         }
         assert(token.mint(recipient, tokenAmount));
-        weiRaised = weiRaised.add(weiToBuy);
         forwardFunds(weiToBuy);
         TokenPurchase(msg.sender, recipient, weiToBuy, tokenAmount);
     }
@@ -138,8 +134,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
      */
 
     function forwardFunds(uint256 _weiToBuy) internal {
-        //treasuryContract.transfer(_weiToBuy);
-        treasuryContract.call.gas(200000).value(_weiToBuy)();
+        treasuryContract.transfer(_weiToBuy);
+        // treasuryContract.call.gas(200000).value(_weiToBuy)();
     }
 
     // TESTED
