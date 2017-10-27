@@ -3,7 +3,7 @@ pragma solidity ^0.4.15;
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './EthearnalRepToken.sol';
 import './Treasury.sol';
-
+import "./MultiOwnable.sol";
 
 contract EthearnalRepTokenCrowdsale is MultiOwnable {
     using SafeMath for uint256;
@@ -14,9 +14,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
     // Token Contract
     EthearnalRepToken public token;
-
-    // Total Wei Raised
-    uint256 public weiRaised = 0;
 
     // Ethereum rate, how much USD does 1 ether cost
     // The actual value is set by setEtherRateUsd
@@ -46,7 +43,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     uint256 public saleCapUsd = 30 * (10**6);
 
     // Money raised totally
-    uint256 public totalRaised = 0;
+    uint256 public weiRaised = 0;
 
     // This event means everything is finished and tokens
     // are allowed to be used by their owners
@@ -70,7 +67,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     
     event ChangeReturn(address recipient, uint256 amount);
     event TokenPurchase(address buyer, address recipient, uint256 weiAmount, uint256 tokenAmount);
-
     /* **************
      * Public methods
      */
@@ -106,19 +102,18 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         );
         weiToBuy = min(weiToBuy, getWeiAllowedFromAddress(msg.sender));
         require(weiToBuy > 0);
-        weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(totalRaised));
+        weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(weiRaised));
         require(weiToBuy > 0);
         uint256 tokenAmount = getTokenAmountForEther(weiToBuy);
         require(tokenAmount > 0);
         uint256 weiToReturn = msg.value.sub(weiToBuy);
-        totalRaised = totalRaised.add(weiToBuy);
+        weiRaised = weiRaised.add(weiToBuy);
         raisedByAddress[msg.sender] = raisedByAddress[msg.sender].add(weiToBuy);
         if (weiToReturn > 0) {
             msg.sender.transfer(weiToReturn);
             ChangeReturn(msg.sender, weiToReturn);
         }
         assert(token.mint(recipient, tokenAmount));
-        weiRaised = weiRaised.add(weiToBuy);
         forwardFunds(weiToBuy);
         TokenPurchase(msg.sender, recipient, weiToBuy, tokenAmount);
     }
@@ -138,8 +133,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
      */
 
     function forwardFunds(uint256 _weiToBuy) internal {
-        //treasuryContract.transfer(_weiToBuy);
-        treasuryContract.call.gas(200000).value(_weiToBuy)();
+        treasuryContract.transfer(_weiToBuy);
     }
 
     // TESTED
@@ -163,7 +157,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     // TESTED
     function isReadyToFinalize() internal returns (bool) {
         return(
-            (totalRaised >= convertUsdToEther(saleCapUsd)) ||
+            (weiRaised >= convertUsdToEther(saleCapUsd)) ||
             (getCurrentState() == State.MainSaleDone)
         );
     }
@@ -227,7 +221,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             isFinalized = true;
             mintTeamTokens();
             token.unlock();
-            //treasuryContract.unlock();
+            treasuryContract.setCrowdsaleFinished();
         }
     }
 
