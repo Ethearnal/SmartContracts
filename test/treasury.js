@@ -5,19 +5,23 @@ require('chai')
 let data = require('./data.js');
 let big = require('./util/bigNum.js').big;
 
-let {deployTestTreasuryContract, deployTestCrowdsaleContract} = require('./util/deploy.js');
+let {deployTestTreasuryContract, deployVotingProxyContract, deployTestTokenContract} = require('./util/deploy.js');
 
 contract('TreasuryContract [all features]', function(accounts) {
-    let {treasuryContract, teamWallet, tokenContract} = {};
+    let {treasuryContract, teamWallet, votingContract, tokenContract} = {};
 
     beforeEach(async () => {
         teamWallet = '0xE744e0143561d1AC46fe9e1278172cEe76db201D';
-        ({treasuryContract, tokenContract} = await deployTestTreasuryContract(
+        treasuryContract= await deployTestTreasuryContract(
             [accounts[0], accounts[1]], teamWallet
-        ));
+        );
+        tokenContract =  await deployTestTokenContract();
+        votingContract = await deployVotingProxyContract(treasuryContract.address, tokenContract.address);
+        await treasuryContract.setVotingProxy(votingContract.address);
     });
 
     it('isCrowdsaleFinished by default', async () => {
+        let a = await treasuryContract.isCrowdsaleFinished();
         false.should.be.equal(
             await treasuryContract.isCrowdsaleFinished()
         );
@@ -132,6 +136,12 @@ contract('TreasuryContract [all features]', function(accounts) {
         await treasuryContract.sendTransaction({value: weiAmount});
         await treasuryContract.setCrowdsaleFinished();
         await treasuryContract.withdrawTeamFunds({from: accounts[2]})
+            .should.be.rejectedWith('invalid opcode');
+    });
+
+    it('increaseWithdrawalChunk can only be called from votingProxy', async ()=> {
+        await votingContract.startincreaseWithdrawalTeam();
+        await treasuryContract.increaseWithdrawalChunk()
             .should.be.rejectedWith('invalid opcode');
     });
 

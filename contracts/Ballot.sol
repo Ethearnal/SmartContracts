@@ -1,7 +1,7 @@
 pragma solidity ^0.4.15;
 
 import "./EthearnalRepToken.sol";
-import "./Treasury.sol";
+import "./VotingProxy.sol";
 
 contract Ballot {
     using SafeMath for uint256;
@@ -26,7 +26,7 @@ contract Ballot {
 
     uint256 public initialQuorumPercent = 51;
 
-    Treasury public treasuryContract;
+    VotingProxy public proxyVotingContract;
 
 
     // Tells if voting process is active
@@ -37,9 +37,9 @@ contract Ballot {
         _;
     }
     
-    function Ballot(address _tokenContract, address _treasuryContract) {
+    function Ballot(address _tokenContract) {
         tokenContract = EthearnalRepToken(_tokenContract);
-        treasuryContract = Treasury(_treasuryContract);
+        proxyVotingContract = VotingProxy(msg.sender);
     }
     
     function startBallot() public {
@@ -96,7 +96,7 @@ contract Ballot {
                 uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
                 if (percentYes >= quorum) {
                     // does not matter if it would be greater than weiRaised
-                    treasuryContract.increaseWithdrawalChunk();
+                    proxyVotingContract.proxyIncreaseWithdrawalChunk();
                 } else {
                     // do nothing, just deactivate voting
                     isVotingActive = false;

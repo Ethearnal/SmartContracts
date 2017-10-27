@@ -32,18 +32,21 @@ contract Treasury is MultiOwnable {
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
 
-    function Treasury(address _teamWallet, address _votingProxyContract) public {
+    function Treasury(address _teamWallet) public {
         require(_teamWallet != 0x0);
-        require(_votingProxyContract != 0x0);
         // TODO: check address integrity
         teamWallet = _teamWallet;
-        votingProxyContract = VotingProxy(_votingProxyContract);
     }
 
     // TESTED
     function() public payable {
         require(msg.sender == address(crowdsaleContract));
         Deposit(msg.value);
+    }
+
+    function setVotingProxy(address _votingProxyContract) public onlyOwner {
+        require(votingProxyContract == address(0x0));
+        votingProxyContract = VotingProxy(_votingProxyContract);
     }
 
     // TESTED

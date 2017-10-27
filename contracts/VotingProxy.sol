@@ -10,6 +10,11 @@ contract VotingProxy is Ownable {
     EthearnalRepToken public tokenContract;
     Ballot public currentIncreaseWithdrawalTeamBallot;
 
+    modifier onlyBallot() {
+        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot));
+        _;
+    }
+
     function  VotingProxy(address _treasuryContract, address _tokenContract) {
         treasuryContract = Treasury(_treasuryContract);
         tokenContract = EthearnalRepToken(_tokenContract);
@@ -17,11 +22,15 @@ contract VotingProxy is Ownable {
 
     function startincreaseWithdrawalTeam() onlyOwner {
         if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
-            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract, treasuryContract);
+            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
         } else {
             require(currentIncreaseWithdrawalTeamBallot.isVotingActive() == false);
-            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract, treasuryContract);
+            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
         }
+    }
+
+    function proxyIncreaseWithdrawalChunk() onlyBallot {
+        treasuryContract.increaseWithdrawalChunk();
     }
 
     function() {
