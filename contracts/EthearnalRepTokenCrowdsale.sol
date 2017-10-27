@@ -67,7 +67,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     
     event ChangeReturn(address recipient, uint256 amount);
     event TokenPurchase(address buyer, address recipient, uint256 weiAmount, uint256 tokenAmount);
-
     /* **************
      * Public methods
      */
@@ -135,7 +134,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
     function forwardFunds(uint256 _weiToBuy) internal {
         treasuryContract.transfer(_weiToBuy);
-        // treasuryContract.call.gas(200000).value(_weiToBuy)();
     }
 
     // TESTED
@@ -223,7 +221,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             isFinalized = true;
             mintTeamTokens();
             token.unlock();
-            //treasuryContract.unlock();
+            treasuryContract.setCrowdsaleFinished();
         }
     }
 

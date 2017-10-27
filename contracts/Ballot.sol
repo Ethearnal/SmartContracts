@@ -7,6 +7,7 @@ contract Ballot {
     using SafeMath for uint256;
     EthearnalRepToken public tokenContract;
 
+    // Date when vote has started
     uint256 public ballotStarted;
 
     // Registry of votes
@@ -18,9 +19,6 @@ contract Ballot {
     // Sum of weights of NO votes
     uint256 public noVoteSum = 0;
 
-    // Date when vote has started
-    uint256 public votingStarted = 0;
-
     // Length of `voters`
     uint256 public votersLength = 0;
 
@@ -28,9 +26,10 @@ contract Ballot {
 
     VotingProxy public proxyVotingContract;
 
-
     // Tells if voting process is active
     bool public isVotingActive = false;
+
+    event FinishBallot(uint256 _time);
     
     modifier onlyWhenBallotStarted {
         require(ballotStarted != 0);
@@ -43,7 +42,7 @@ contract Ballot {
     }
     
     function startBallot() public {
-        ballotStarted = now;
+        ballotStarted = getTime();
         isVotingActive = true;
     }
 
@@ -51,7 +50,7 @@ contract Ballot {
         require(_vote.length > 0);
         if (isDataYes(_vote)) {
             processVote(true);
-        } else if (isDataNo(msg.data)) {
+        } else if (isDataNo(_vote)) {
             processVote(false);
         }
     }
@@ -86,6 +85,7 @@ contract Ballot {
         } else {
             noVoteSum = noVoteSum.add(voteWeight);
         }
+        require(getTime().sub(tokenContract.lastMovement(msg.sender)) > 7 days);
         uint256 quorumPercent = getQuorumPercent();
         if (quorumPercent == 0) {
             isVotingActive = false;
@@ -94,9 +94,11 @@ contract Ballot {
             uint256 soFarVoted = yesVoteSum.add(noVoteSum);
             if (soFarVoted >= quorum) {
                 uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
-                if (percentYes >= quorum) {
+                if (percentYes >= initialQuorumPercent) {
                     // does not matter if it would be greater than weiRaised
                     proxyVotingContract.proxyIncreaseWithdrawalChunk();
+                    FinishBallot(now);
+                    isVotingActive = false;
                 } else {
                     // do nothing, just deactivate voting
                     isVotingActive = false;
@@ -108,7 +110,10 @@ contract Ballot {
     function getQuorumPercent() public constant returns (uint256) {
         require(isVotingActive);
         // find number of full weeks alapsed since voting started
-        uint256 weeksNumber = getTime().sub(votingStarted).div(1 weeks);
+        uint256 weeksNumber = getTime().sub(ballotStarted).div(1 weeks);
+        if(weeksNumber == 0) {
+            return initialQuorumPercent;
+        }
         if (initialQuorumPercent < weeksNumber * 10) {
             return 0;
         } else {

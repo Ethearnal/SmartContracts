@@ -140,26 +140,12 @@ contract('TreasuryContract [all features]', function(accounts) {
     });
 
     it('increaseWithdrawalChunk can only be called from votingProxy', async ()=> {
-        await votingContract.startincreaseWithdrawalTeam();
+        await votingContract.startincreaseWithdrawalTeam()
+            .should.be.rejectedWith('invalid opcode');
         await treasuryContract.increaseWithdrawalChunk()
             .should.be.rejectedWith('invalid opcode');
     });
 
-    // it('isDataYes', async () => {
-    //     true.should.be.equal(await treasuryContract.isDataYes.call("YES"));
-    //     false.should.be.equal(await treasuryContract.isDataYes.call(" YES"));
-    //     false.should.be.equal(await treasuryContract.isDataYes.call("YESS"));
-    //     false.should.be.equal(await treasuryContract.isDataYes.call("YES "));
-    //     false.should.be.equal(await treasuryContract.isDataYes.call("yes"));
-    // });
-
-    // it('isDataNo', async () => {
-    //     true.should.be.equal(await treasuryContract.isDataNo.call("NO"));
-    //     false.should.be.equal(await treasuryContract.isDataNo.call(" NO"));
-    //     false.should.be.equal(await treasuryContract.isDataNo.call("NOO"));
-    //     false.should.be.equal(await treasuryContract.isDataNo.call("NO "));
-    //     false.should.be.equal(await treasuryContract.isDataNo.call("no"));
-    // });
 
     // it('startWidhrawVoting fails if not isCrowdsaleFinished', async () => {
     //     await treasuryContract.startWithdrawVoting()

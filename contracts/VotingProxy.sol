@@ -21,6 +21,7 @@ contract VotingProxy is Ownable {
     }
 
     function startincreaseWithdrawalTeam() onlyOwner {
+        require(treasuryContract.isCrowdsaleFinished());
         if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
             currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
         } else {

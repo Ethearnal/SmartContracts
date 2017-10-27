@@ -31,6 +31,7 @@ contract Treasury is MultiOwnable {
 
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
+    event UnlockWei(uint256 amount);
 
     function Treasury(address _teamWallet) public {
         require(_teamWallet != 0x0);
@@ -81,8 +82,10 @@ contract Treasury is MultiOwnable {
     }
 
     function increaseWithdrawalChunk() {
+        require(isCrowdsaleFinished);
         require(msg.sender == address(votingProxyContract));
         weiUnlocked = weiUnlocked.add(withdrawChunk);
+        UnlockWei(weiUnlocked);
     }
 
     function getTime() internal returns (uint256) {
