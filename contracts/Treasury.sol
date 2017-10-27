@@ -23,6 +23,7 @@ contract Treasury is MultiOwnable {
 
     // Crowdsale contract address
     EthearnalRepTokenCrowdsale public crowdsaleContract;
+    bool public isRefundsEnabled = false;
 
     // Amount of ether that could be withdrawed each withdraw iteration
     uint256 public withdrawChunk = 0;
@@ -93,5 +94,18 @@ contract Treasury is MultiOwnable {
         // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
         // to allow testing contract behaviour at different time moments
         return now;
+    }
+
+    function enableRefunds() public {
+        require(msg.sender == address(votingProxyContract));
+        isRefundsEnabled = true;
+    }
+
+    function refundInvestor() public {
+        // require refundsEnabled
+        // require allowance to burn
+        // calculate rate
+        // refund
+        
     }
 }
