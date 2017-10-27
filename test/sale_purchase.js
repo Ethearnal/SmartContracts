@@ -24,7 +24,7 @@ contract('Crowdsale [Finalization]', function(accounts) {
         let res = await saleContract.sendTransaction({value: weiAmount});
         let etherUsed = etherUsedForTx(res);
         saleCap.should.be.bignumber.equal(
-            await saleContract.totalRaised({from: accounts[1]})
+            await saleContract.weiRaised({from: accounts[1]})
         );
         initBalance.sub(saleCap).sub(etherUsed).should.be.bignumber.equal(
             await web3.eth.getBalance(accounts[0])
@@ -39,7 +39,7 @@ contract('Crowdsale [Finalization]', function(accounts) {
         let res = await saleContract.sendTransaction({value: weiAmount});
         let etherUsed = etherUsedForTx(res);
         hourLimit.should.be.bignumber.equal(
-            await saleContract.totalRaised({from: accounts[1]})
+            await saleContract.weiRaised({from: accounts[1]})
         );
         initBalance.sub(hourLimit).sub(etherUsed).should.be.bignumber.equal(
             await web3.eth.getBalance(accounts[0])

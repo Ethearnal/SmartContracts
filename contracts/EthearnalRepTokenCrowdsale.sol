@@ -3,7 +3,7 @@ pragma solidity ^0.4.15;
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './EthearnalRepToken.sol';
 import './Treasury.sol';
-
+import "./MultiOwnable.sol";
 
 contract EthearnalRepTokenCrowdsale is MultiOwnable {
     using SafeMath for uint256;
@@ -43,7 +43,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     uint256 public saleCapUsd = 30 * (10**6);
 
     // Money raised totally
-    uint256 public totalRaised = 0;
+    uint256 public weiRaised = 0;
 
     // This event means everything is finished and tokens
     // are allowed to be used by their owners
@@ -103,12 +103,12 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         );
         weiToBuy = min(weiToBuy, getWeiAllowedFromAddress(msg.sender));
         require(weiToBuy > 0);
-        weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(totalRaised));
+        weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(weiRaised));
         require(weiToBuy > 0);
         uint256 tokenAmount = getTokenAmountForEther(weiToBuy);
         require(tokenAmount > 0);
         uint256 weiToReturn = msg.value.sub(weiToBuy);
-        totalRaised = totalRaised.add(weiToBuy);
+        weiRaised = weiRaised.add(weiToBuy);
         raisedByAddress[msg.sender] = raisedByAddress[msg.sender].add(weiToBuy);
         if (weiToReturn > 0) {
             msg.sender.transfer(weiToReturn);
@@ -159,7 +159,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     // TESTED
     function isReadyToFinalize() internal returns (bool) {
         return(
-            (totalRaised >= convertUsdToEther(saleCapUsd)) ||
+            (weiRaised >= convertUsdToEther(saleCapUsd)) ||
             (getCurrentState() == State.MainSaleDone)
         );
     }

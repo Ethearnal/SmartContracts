@@ -30,6 +30,7 @@ contract Treasury is MultiOwnable {
 
 
     event Deposit(uint256 amount);
+    event Withdraw(uint256 amount);
 
     function Treasury(address _teamWallet, address _votingProxyContract) public {
         require(_teamWallet != 0x0);
@@ -66,11 +67,13 @@ contract Treasury is MultiOwnable {
     function withdrawTeamFunds() public onlyOwner {
         require(isCrowdsaleFinished);
         require(weiUnlocked > weiWithdrawed);
+        uint256 toWithdraw = weiUnlocked.sub(weiWithdrawed);
         weiWithdrawed = weiUnlocked;
-        teamWallet.transfer(weiUnlocked.sub(weiWithdrawed));
+        teamWallet.transfer(toWithdraw);
+        Withdraw(weiUnlocked.sub(weiWithdrawed));
     }
 
-    function getWeiRaised() public returns(uint256) {
+    function getWeiRaised() public constant returns(uint256) {
        return crowdsaleContract.weiRaised();
     }
 

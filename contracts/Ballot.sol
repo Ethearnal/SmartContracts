@@ -1,4 +1,7 @@
+pragma solidity ^0.4.15;
+
 import "./EthearnalRepToken.sol";
+import "./Treasury.sol";
 
 contract Ballot {
     using SafeMath for uint256;
@@ -7,27 +10,27 @@ contract Ballot {
     uint256 public ballotStarted;
 
     // Registry of votes
-    mapping(address => bool) votesByAddress;
+    mapping(address => bool) public votesByAddress;
 
     // Sum of weights of YES votes
-    uint256 yesVoteSum = 0;
+    uint256 public yesVoteSum = 0;
 
     // Sum of weights of NO votes
-    uint256 noVoteSum = 0;
+    uint256 public noVoteSum = 0;
 
     // Date when vote has started
-    uint256 votingStarted = 0;
+    uint256 public votingStarted = 0;
 
     // Length of `voters`
-    uint256 votersLength = 0;
+    uint256 public votersLength = 0;
 
-    uint256 initialQuorumPercent = 51;
+    uint256 public initialQuorumPercent = 51;
 
-    address public treasuryContract = 0x0;
+    Treasury public treasuryContract;
 
 
     // Tells if voting process is active
-    bool isVotingActive = false;
+    bool public isVotingActive = false;
     
     modifier onlyWhenBallotStarted {
         require(ballotStarted != 0);
@@ -88,8 +91,10 @@ contract Ballot {
             isVotingActive = false;
         } else {
             uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
-            if (yesVoteSum.add(noVoteSum) >= quorum) {
-                if (yesVoteSum > noVoteSum) {
+            uint256 soFarVoted = yesVoteSum.add(noVoteSum);
+            if (soFarVoted >= quorum) {
+                uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
+                if (percentYes >= quorum) {
                     // does not matter if it would be greater than weiRaised
                     treasuryContract.increaseWithdrawalChunk();
                 } else {
@@ -109,6 +114,13 @@ contract Ballot {
         } else {
             return initialQuorumPercent.sub(weeksNumber * 10);
         }
+    }
+
+    function getTime() internal returns (uint256) {
+        // Just returns `now` value
+        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
+        // to allow testing contract behaviour at different time moments
+        return now;
     }
     
 }

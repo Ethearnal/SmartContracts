@@ -5,13 +5,13 @@ require('chai')
 let data = require('./data.js');
 let big = require('./util/bigNum.js').big;
 
-let {deployTestTreasuryContract} = require('./util/deploy.js');
+let {deployTestTreasuryContract, deployTestCrowdsaleContract} = require('./util/deploy.js');
 
 contract('TreasuryContract [all features]', function(accounts) {
     let {treasuryContract, teamWallet, tokenContract} = {};
 
     beforeEach(async () => {
-        teamWallet = accounts[2];
+        teamWallet = '0xE744e0143561d1AC46fe9e1278172cEe76db201D';
         ({treasuryContract, tokenContract} = await deployTestTreasuryContract(
             [accounts[0], accounts[1]], teamWallet
         ));
@@ -83,10 +83,16 @@ contract('TreasuryContract [all features]', function(accounts) {
 
     it('withdrawTeamFunds [10% unlocked when crowdsale finisehd]', async () => {
         await treasuryContract.setCrowdsaleContract(accounts[0]);
-        let weiAmount = data.ETHER.mul(11);
+        let weiAmount = data.ETHER.mul(11.5);
         await treasuryContract.sendTransaction({value: weiAmount});
+        let balanceTreasury = await web3.eth.getBalance(treasuryContract.address);
+        let balanceTeam = await web3.eth.getBalance(teamWallet);
         await treasuryContract.setCrowdsaleFinished();
+        let weiUnlocked = await treasuryContract.weiUnlocked();
         let withdrawChunk = weiAmount.divToInt(10);
+        weiUnlocked.should.be.bignumber.equal(
+            withdrawChunk
+        )
         let beforeBalance = await web3.eth.getBalance(teamWallet);
         await treasuryContract.withdrawTeamFunds();
         beforeBalance.add(withdrawChunk).should.be.bignumber.equal(
@@ -129,57 +135,57 @@ contract('TreasuryContract [all features]', function(accounts) {
             .should.be.rejectedWith('invalid opcode');
     });
 
-    it('isDataYes', async () => {
-        true.should.be.equal(await treasuryContract.isDataYes.call("YES"));
-        false.should.be.equal(await treasuryContract.isDataYes.call(" YES"));
-        false.should.be.equal(await treasuryContract.isDataYes.call("YESS"));
-        false.should.be.equal(await treasuryContract.isDataYes.call("YES "));
-        false.should.be.equal(await treasuryContract.isDataYes.call("yes"));
-    });
+    // it('isDataYes', async () => {
+    //     true.should.be.equal(await treasuryContract.isDataYes.call("YES"));
+    //     false.should.be.equal(await treasuryContract.isDataYes.call(" YES"));
+    //     false.should.be.equal(await treasuryContract.isDataYes.call("YESS"));
+    //     false.should.be.equal(await treasuryContract.isDataYes.call("YES "));
+    //     false.should.be.equal(await treasuryContract.isDataYes.call("yes"));
+    // });
 
-    it('isDataNo', async () => {
-        true.should.be.equal(await treasuryContract.isDataNo.call("NO"));
-        false.should.be.equal(await treasuryContract.isDataNo.call(" NO"));
-        false.should.be.equal(await treasuryContract.isDataNo.call("NOO"));
-        false.should.be.equal(await treasuryContract.isDataNo.call("NO "));
-        false.should.be.equal(await treasuryContract.isDataNo.call("no"));
-    });
+    // it('isDataNo', async () => {
+    //     true.should.be.equal(await treasuryContract.isDataNo.call("NO"));
+    //     false.should.be.equal(await treasuryContract.isDataNo.call(" NO"));
+    //     false.should.be.equal(await treasuryContract.isDataNo.call("NOO"));
+    //     false.should.be.equal(await treasuryContract.isDataNo.call("NO "));
+    //     false.should.be.equal(await treasuryContract.isDataNo.call("no"));
+    // });
 
-    it('startWidhrawVoting fails if not isCrowdsaleFinished', async () => {
-        await treasuryContract.startWithdrawVoting()
-            .should.be.rejectedWith('invalid opcode');
-    });
+    // it('startWidhrawVoting fails if not isCrowdsaleFinished', async () => {
+    //     await treasuryContract.startWithdrawVoting()
+    //         .should.be.rejectedWith('invalid opcode');
+    // });
 
-    it('startWidhrawVoting fails if weiUnlocked != weiWithdrawed', async () => {
-        await treasuryContract.setCrowdsaleContract(accounts[0]);
-        let weiAmount = data.ETHER.mul(11);
-        await treasuryContract.sendTransaction({value: weiAmount});
-        await treasuryContract.setCrowdsaleFinished();
-        (await treasuryContract.weiUnlocked()).should.be.bignumber.not.equal(
-            await treasuryContract.weiWithdrawed()
-        );
-        await treasuryContract.startWithdrawVoting()
-            .should.be.rejectedWith('invalid opcode');
-    });
+    // it('startWidhrawVoting fails if weiUnlocked != weiWithdrawed', async () => {
+    //     await treasuryContract.setCrowdsaleContract(accounts[0]);
+    //     let weiAmount = data.ETHER.mul(11);
+    //     await treasuryContract.sendTransaction({value: weiAmount});
+    //     await treasuryContract.setCrowdsaleFinished();
+    //     (await treasuryContract.weiUnlocked()).should.be.bignumber.not.equal(
+    //         await treasuryContract.weiWithdrawed()
+    //     );
+    //     await treasuryContract.startWithdrawVoting()
+    //         .should.be.rejectedWith('invalid opcode');
+    // });
 
-    it('startWidhrawVoting', async () => {
-        await treasuryContract.setCrowdsaleContract(accounts[0]);
-        let weiAmount = data.ETHER.mul(11);
-        await treasuryContract.sendTransaction({value: weiAmount});
-        await treasuryContract.setCrowdsaleFinished();
-        await treasuryContract.withdrawTeamFunds();
-        await treasuryContract.startWithdrawVoting();
-    });
+    // it('startWidhrawVoting', async () => {
+    //     await treasuryContract.setCrowdsaleContract(accounts[0]);
+    //     let weiAmount = data.ETHER.mul(11);
+    //     await treasuryContract.sendTransaction({value: weiAmount});
+    //     await treasuryContract.setCrowdsaleFinished();
+    //     await treasuryContract.withdrawTeamFunds();
+    //     await treasuryContract.startWithdrawVoting();
+    // });
 
-    it('startWidhrawVoting fails if already started', async () => {
-        await treasuryContract.setCrowdsaleContract(accounts[0]);
-        let weiAmount = data.ETHER.mul(11);
-        await treasuryContract.sendTransaction({value: weiAmount});
-        await treasuryContract.setCrowdsaleFinished();
-        await treasuryContract.withdrawTeamFunds();
-        await treasuryContract.startWithdrawVoting();
-        await treasuryContract.startWithdrawVoting()
-            .should.be.rejectedWith('invalid opcode');
-    });
+    // it('startWidhrawVoting fails if already started', async () => {
+    //     await treasuryContract.setCrowdsaleContract(accounts[0]);
+    //     let weiAmount = data.ETHER.mul(11);
+    //     await treasuryContract.sendTransaction({value: weiAmount});
+    //     await treasuryContract.setCrowdsaleFinished();
+    //     await treasuryContract.withdrawTeamFunds();
+    //     await treasuryContract.startWithdrawVoting();
+    //     await treasuryContract.startWithdrawVoting()
+    //         .should.be.rejectedWith('invalid opcode');
+    // });
 });
 
