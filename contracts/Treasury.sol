@@ -34,6 +34,7 @@ contract Treasury is MultiOwnable {
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
     event UnlockWei(uint256 amount);
+    event RefundedInvestor(address investor, uint256 amountRefunded, uint256 tokensBurn);
 
     function Treasury(address _teamWallet) public {
         require(_teamWallet != 0x0);
@@ -108,19 +109,18 @@ contract Treasury is MultiOwnable {
         require(msg.sender == address(votingProxyContract));
         isRefundsEnabled = true;
     }
-
+    
     function refundInvestor(uint256 _tokensToBurn) public {
         require(isRefundsEnabled);
-        require(address(tokenContract) != 0x0);
-        uint256 allowedToBurn = tokenContract.allowance(msg.sender, address(this));
-        require(allowedToBurn >= _tokensToBurn);
+        require(address(tokenContract) != address(0x0));
         uint256 tokenRate = crowdsaleContract.getTokenRateEther();
-        uint256 toRefund = tokenRate.mul(_tokensToBurn);
+        uint256 toRefund = tokenRate.mul(_tokensToBurn).div(1 ether);
         uint256 percentLeft = percentLeftFromTotalRaised().mul(100*1000).div(1 ether);
         toRefund = toRefund.mul(percentLeft).div(100*1000);
         require(toRefund > 0);
         tokenContract.burnFrom(msg.sender, _tokensToBurn);
         msg.sender.transfer(toRefund);
+        RefundedInvestor(msg.sender, toRefund, _tokensToBurn);
     }
 
     function percentLeftFromTotalRaised() public constant returns(uint256) {

@@ -25,6 +25,7 @@ async function deployTestContracts(accounts) {
     let votingProxyContract = await VotingProxy.new(treasuryContract.address, tokenContract.address);
     await treasuryContract.setVotingProxy(votingProxyContract.address);
     await treasuryContract.setCrowdsaleContract(saleContract.address);
+    await treasuryContract.setTokenContract(tokenContract.address);
     await tokenContract.transferOwnership(saleContract.address);
     await saleContract.setEtherRateUsd(data.ETHER_RATE_USD);
     return {

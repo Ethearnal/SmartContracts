@@ -14,13 +14,6 @@ contract VotingProxy is Ownable {
     Ballot public currentIncreaseWithdrawalTeamBallot;
     RefundInvestorsBallot public currentRefundInvestorsBallot;
 
-    modifier onlyBallot() {
-        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot) ||
-                msg.sender == address(currentRefundInvestorsBallot)
-        );
-        _;
-    }
-
     function  VotingProxy(address _treasuryContract, address _tokenContract) {
         treasuryContract = Treasury(_treasuryContract);
         tokenContract = EthearnalRepToken(_tokenContract);
@@ -56,11 +49,13 @@ contract VotingProxy is Ownable {
         return getTime().sub(currentIncreaseWithdrawalTeamBallot.ballotStarted()).div(1 days);
     }
 
-    function proxyIncreaseWithdrawalChunk() onlyBallot {
+    function proxyIncreaseWithdrawalChunk() public {
+        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot));
         treasuryContract.increaseWithdrawalChunk();
     }
 
-    function proxyEnableRefunds() onlyBallot {
+    function proxyEnableRefunds() public {
+        require(msg.sender == address(currentRefundInvestorsBallot));
         treasuryContract.enableRefunds();
     }
 
