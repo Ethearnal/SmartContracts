@@ -12,4 +12,8 @@ contract TreasuryMock is Treasury {
     function getWeiRaised() public constant returns(uint256) {
        return this.balance;
     }
+
+    function setRefundsEnabled(bool _status) public {
+        isRefundsEnabled = _status;
+    }
 }

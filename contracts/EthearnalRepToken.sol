@@ -7,6 +7,7 @@ import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 contract LockableToken is StandardToken, Ownable {
     bool public isLocked = true;
     mapping (address => uint256) public lastMovement;
+    event Burn(address _owner, uint256 _amount);
 
 
     function unlock() public onlyOwner {
@@ -28,6 +29,17 @@ contract LockableToken is StandardToken, Ownable {
     function approve(address _spender, uint256 _value) public returns (bool) {
         require(!isLocked);
         super.approve(_spender, _value);
+    }
+
+    function burnFrom(address _from, uint256 _value) public  returns (bool) {
+        require(_value <= balances[_from]);
+        require(_value <= allowed[_from][msg.sender]);
+        balances[_from] = balances[_from].sub(_value);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+
+        totalSupply = totalSupply.sub(_value);
+        Burn(_from, _value);
+        return true;
     }
 
     function getTime() internal returns (uint256) {

@@ -137,18 +137,18 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     // TESTED
-    function convertUsdToEther(uint256 usdAmount) internal returns (uint256) {
+    function convertUsdToEther(uint256 usdAmount) constant internal returns (uint256) {
         return usdAmount.mul(1 ether).div(etherRateUsd);
     }
 
     // TESTED
-    function getTokenRateEther() internal returns (uint256) {
+    function getTokenRateEther() public constant returns (uint256) {
         // div(1000) because 3 decimals in tokenRateUsd
         return convertUsdToEther(tokenRateUsd).div(1000);
     }
 
     // TESTED
-    function getTokenAmountForEther(uint256 weiAmount) internal returns (uint256) {
+    function getTokenAmountForEther(uint256 weiAmount) constant internal returns (uint256) {
         return weiAmount
             .div(getTokenRateEther())
             .mul(10 ** token.decimals());

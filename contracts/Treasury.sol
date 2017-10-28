@@ -23,6 +23,7 @@ contract Treasury is MultiOwnable {
 
     // Crowdsale contract address
     EthearnalRepTokenCrowdsale public crowdsaleContract;
+    EthearnalRepToken public tokenContract;
     bool public isRefundsEnabled = false;
 
     // Amount of ether that could be withdrawed each withdraw iteration
@@ -57,6 +58,13 @@ contract Treasury is MultiOwnable {
         require(crowdsaleContract == address(0x0));
         require(_address != 0x0);
         crowdsaleContract = EthearnalRepTokenCrowdsale(_address); 
+    }
+
+    function setTokenContract(address _address) public onlyOwner {
+        // Could be set only once
+        require(tokenContract == address(0x0));
+        require(_address != 0x0);
+        tokenContract = EthearnalRepToken(_address);
     }
 
     // TESTED
@@ -101,11 +109,29 @@ contract Treasury is MultiOwnable {
         isRefundsEnabled = true;
     }
 
-    function refundInvestor() public {
-        // require refundsEnabled
-        // require allowance to burn
-        // calculate rate
-        // refund
-        
+    function refundInvestor(uint256 _tokensToBurn) public {
+        require(isRefundsEnabled);
+        require(address(tokenContract) != 0x0);
+        uint256 allowedToBurn = tokenContract.allowance(msg.sender, address(this));
+        require(allowedToBurn >= _tokensToBurn);
+        uint256 tokenRate = crowdsaleContract.getTokenRateEther();
+        uint256 toRefund = tokenRate.mul(_tokensToBurn);
+        uint256 percentLeft = percentLeftFromTotalRaised().mul(100*1000).div(1 ether);
+        toRefund = toRefund.mul(percentLeft).div(100*1000);
+        require(toRefund > 0);
+        tokenContract.burnFrom(msg.sender, _tokensToBurn);
+        msg.sender.transfer(toRefund);
+    }
+
+    function percentLeftFromTotalRaised() public constant returns(uint256) {
+        return percent(this.balance, getWeiRaised(), 18);
+    }
+
+    function percent(uint numerator, uint denominator, uint precision) internal constant returns(uint quotient) {
+        // caution, check safe-to-multiply here
+        uint _numerator  = numerator * 10 ** (precision+1);
+        // with rounding of last digit
+        uint _quotient =  ((_numerator / denominator) + 5) / 10;
+        return ( _quotient);
     }
 }

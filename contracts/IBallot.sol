@@ -36,11 +36,6 @@ contract IBallot {
         _;
     }
     
-    // function IBallot(address _tokenContract) {
-    //     tokenContract = EthearnalRepToken(_tokenContract);
-    //     proxyVotingContract = VotingProxy(msg.sender);
-    // }
-    
     function startBallot() public {
         ballotStarted = getTime();
         isVotingActive = true;
