@@ -5,8 +5,10 @@ import './Ballot.sol';
 import './RefundInvestorsBallot.sol';
 import "./EthearnalRepToken.sol";
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 
 contract VotingProxy is Ownable {
+    using SafeMath for uint256;    
     Treasury public treasuryContract;
     EthearnalRepToken public tokenContract;
     Ballot public currentIncreaseWithdrawalTeamBallot;
@@ -30,7 +32,7 @@ contract VotingProxy is Ownable {
         if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
             currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
         } else {
-            require(currentIncreaseWithdrawalTeamBallot.isVotingActive() == false);
+            require(getDaysPassedSinceLastTeamFundsBallot() > 2);
             currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
         }
     }
@@ -41,9 +43,17 @@ contract VotingProxy is Ownable {
         if(address(currentRefundInvestorsBallot) == 0x0) {
             currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
         } else {
-            require(currentRefundInvestorsBallot.isVotingActive() == false);
+            require(getDaysPassedSinceLastRefundBallot() > 2);
             currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
         }
+    }
+
+    function getDaysPassedSinceLastRefundBallot() public constant returns(uint256) {
+        return getTime().sub(currentRefundInvestorsBallot.ballotStarted()).div(1 days);
+    }
+
+    function getDaysPassedSinceLastTeamFundsBallot() public constant returns(uint256) {
+        return getTime().sub(currentIncreaseWithdrawalTeamBallot.ballotStarted()).div(1 days);
     }
 
     function proxyIncreaseWithdrawalChunk() onlyBallot {
@@ -57,4 +67,13 @@ contract VotingProxy is Ownable {
     function() {
         revert();
     }
+
+    function getTime() internal returns (uint256) {
+        // Just returns `now` value
+        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
+        // to allow testing contract behaviour at different time moments
+        return now;
+    }
+
+
 }
