@@ -55,6 +55,12 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     // money received from each customer
     mapping(address => uint256) public raisedByAddress;
 
+    // whitelisted investors
+    mapping(address => bool) public whitelist;
+    // how many whitelisted investors
+    uint256 public whitelistedInvestorCounter;
+
+
     // Extra money each address can spend each hour
     uint256 hourLimitByAddressUsd = 1000;
 
@@ -66,7 +72,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
      */
     
     event ChangeReturn(address recipient, uint256 amount);
-    event TokenPurchase(address buyer, address recipient, uint256 weiAmount, uint256 tokenAmount);
+    event TokenPurchase(address buyer, uint256 weiAmount, uint256 tokenAmount);
     /* **************
      * Public methods
      */
@@ -88,19 +94,36 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     function() public payable {
-        buyTokens(msg.sender);
+        if (whitelist[msg.sender]) {
+            buyForWhitelisted();
+        } else {
+            buyTokens();
+        }
     }
 
-    function buyTokens(address recipient) public payable {
-        require(recipient != address(0));
+    function buyForWhitelisted() public payable {
+        address whitelistedInvestor = msg.sender;
+        require(whitelist[whitelistedInvestor]);
+        uint256 weiToBuy = msg.value;
+        require(weiToBuy > 0);
+        uint256 tokenAmount = getTokenAmountForEther(weiToBuy);
+        require(tokenAmount > 0);
+        weiRaised = weiRaised.add(weiToBuy);
+        raisedByAddress[whitelistedInvestor] = raisedByAddress[whitelistedInvestor].add(weiToBuy);
+        assert(token.mint(whitelistedInvestor, tokenAmount));
+        forwardFunds(weiToBuy);
+        TokenPurchase(whitelistedInvestor, weiToBuy, tokenAmount);
+    }
 
+    function buyTokens() public payable {
+        address recipient = msg.sender;
         State state = getCurrentState();
         uint256 weiToBuy = msg.value;
         require(
             (state == State.MainSale) &&
             (weiToBuy > 0)
         );
-        weiToBuy = min(weiToBuy, getWeiAllowedFromAddress(msg.sender));
+        weiToBuy = min(weiToBuy, getWeiAllowedFromAddress(recipient));
         require(weiToBuy > 0);
         weiToBuy = min(weiToBuy, convertUsdToEther(saleCapUsd).sub(weiRaised));
         require(weiToBuy > 0);
@@ -108,14 +131,14 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(tokenAmount > 0);
         uint256 weiToReturn = msg.value.sub(weiToBuy);
         weiRaised = weiRaised.add(weiToBuy);
-        raisedByAddress[msg.sender] = raisedByAddress[msg.sender].add(weiToBuy);
+        raisedByAddress[recipient] = raisedByAddress[recipient].add(weiToBuy);
         if (weiToReturn > 0) {
-            msg.sender.transfer(weiToReturn);
-            ChangeReturn(msg.sender, weiToReturn);
+            recipient.transfer(weiToReturn);
+            ChangeReturn(recipient, weiToReturn);
         }
         assert(token.mint(recipient, tokenAmount));
         forwardFunds(weiToBuy);
-        TokenPurchase(msg.sender, recipient, weiToBuy, tokenAmount);
+        TokenPurchase(recipient, weiToBuy, tokenAmount);
     }
 
     function setEtherRateUsd(uint256 _rate) public onlyOwner {
@@ -174,15 +197,15 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
     // TESTED
     function ceil(uint a, uint b) internal returns (uint) {
-        return ((a + b - 1) / b) * b;
+        return ((a.add(b).sub(1)).div(b)).mul(b);
     }
 
     // TESTED
     function getWeiAllowedFromAddress(address _sender) internal returns (uint256) {
         uint256 secondsElapsed = getTime().sub(saleStartDate);
-        uint256 fullHours = ceil(secondsElapsed, 3600) / 3600;
+        uint256 fullHours = ceil(secondsElapsed, 3600).div(3600);
         fullHours = max(1, fullHours);
-        uint256 weiLimit = fullHours * convertUsdToEther(hourLimitByAddressUsd);
+        uint256 weiLimit = fullHours.mul(convertUsdToEther(hourLimitByAddressUsd));
         return weiLimit.sub(raisedByAddress[_sender]);
     }
 
@@ -231,4 +254,31 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         var tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
         token.mint(teamTokenWallet, tokenAmount);
     }
+
+
+    function whitelistInvestor(address _newInvestor) public onlyOwner {
+        if(!whitelist[_newInvestor]) {
+            whitelist[_newInvestor] = true;
+            whitelistedInvestorCounter++;
+        }
+    }
+    function whitelistInvestors(address[] _investors) external onlyOwner {
+        require(_investors.length <= 250);
+        for(uint8 i=0; i<_investors.length;i++) {
+            address newInvestor = _investors[i];
+            if(!whitelist[newInvestor]) {
+                whitelist[newInvestor] = true;
+                whitelistedInvestorCounter++;
+            }
+        }
+    }
+    function blacklistInvestor(address _investor) public onlyOwner {
+        if(whitelist[_investor]) {
+            delete whitelist[_investor];
+            if(whitelistedInvestorCounter != 0) {
+                whitelistedInvestorCounter--;
+            }
+        }
+    }
+
 }

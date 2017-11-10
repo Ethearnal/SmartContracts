@@ -38,5 +38,6 @@ module.exports = {
     convertUsdToEther: convertUsdToEther,
     TEAM_TOKEN_RATIO: big(1 * 1000).divToInt(3),
     HOUR_LIMIT_BY_ADDRESS_USD: HOUR_LIMIT_BY_ADDRESS_USD,
-    HOUR_LIMIT_BY_ADDRESS_WEI: convertUsdToEther(HOUR_LIMIT_BY_ADDRESS_USD)
+    HOUR_LIMIT_BY_ADDRESS_WEI: convertUsdToEther(HOUR_LIMIT_BY_ADDRESS_USD),
+    ERROR_MSG_REVERT: 'invalid opcode'
 }

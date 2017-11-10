@@ -48,7 +48,7 @@ contract('Crowdsale [Basic Features]', function(accounts) {
        await saleContract.setTime(data.SALE_START_DATE);
        let weiAmount = data.ETHER;
        let tokenAmount = data.ETHER.divToInt(data.TOKEN_RATE_ETHER).mul(10**data.DECIMALS)
-       await saleContract.buyTokens(accounts[0], {value: weiAmount});
+       await saleContract.buyTokens({value: weiAmount});
        tokenAmount.should.be.bignumber.equal(
            await tokenContract.balanceOf(accounts[0])
        );
