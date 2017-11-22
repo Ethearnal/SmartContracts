@@ -100,7 +100,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     function setTokenContract(address _token) public onlyOwner {
-        require(_token != 0x0);
+        require(_token != 0x0 && token == address(0));
         require(EthearnalRepToken(_token).owner() == address(this));
         token = EthearnalRepToken(_token);
     }
