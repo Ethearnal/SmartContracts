@@ -8,11 +8,10 @@ contract EthearnalRepTokenCrowdsaleMock is EthearnalRepTokenCrowdsale {
 
     function EthearnalRepTokenCrowdsaleMock(
         address[] _owners,
-        address _token,
         address _treasuryContract,
         address _teamTokenWallet
     )
-        EthearnalRepTokenCrowdsale(_owners, _token, _treasuryContract, _teamTokenWallet)
+        EthearnalRepTokenCrowdsale(_owners, _treasuryContract, _teamTokenWallet)
     {
         // emptiness
     }

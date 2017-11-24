@@ -79,15 +79,13 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
     function EthearnalRepTokenCrowdsale(
         address[] _owners,
-        address _token,
         address _treasuryContract,
         address _teamTokenWallet
     ) {
         require(_owners.length > 1);
-        require(_token != 0x0);
         require(_treasuryContract != 0x0);
         require(_teamTokenWallet != 0x0);
-        token = EthearnalRepToken(_token);
+        
         treasuryContract = Treasury(_treasuryContract);
         teamTokenWallet = _teamTokenWallet;
         setupOwners(_owners);
@@ -101,7 +99,15 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         }
     }
 
+    function setTokenContract(address _token) public onlyOwner {
+        require(_token != 0x0 && token == address(0));
+        require(EthearnalRepToken(_token).owner() == address(this));
+        require(EthearnalRepToken(_token).totalSupply() == 0);
+        token = EthearnalRepToken(_token);
+    }
+
     function buyForWhitelisted() public payable {
+        require(token != address(0));
         address whitelistedInvestor = msg.sender;
         require(whitelist[whitelistedInvestor]);
         uint256 weiToBuy = msg.value;
@@ -116,6 +122,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     function buyTokens() public payable {
+        require(token != address(0));
         address recipient = msg.sender;
         State state = getCurrentState();
         uint256 weiToBuy = msg.value;
