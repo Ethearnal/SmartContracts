@@ -13,7 +13,7 @@
     "ethereumjs-testrpc": "^4.1.3",
     "moment": "latest",
     "sol-merger": "latest",
-    "zeppelin-solidity": "latest"
+    "zeppelin-solidity": "1.3.0"
   },
   "devDependencies": {
     "ethereumjs-testrpc": "^4.1.3"

@@ -1,89 +1,4 @@
-pragma solidity ^0.4.13;
-
-contract MultiOwnable {
-    mapping (address => bool) public ownerRegistry;
-    address[] owners;
-    address multiOwnableCreator = 0x0;
-
-    function MultiOwnable() {
-        multiOwnableCreator = msg.sender;
-    }
-
-    function setupOwners(address[] _owners) {
-        // Owners are allowed to be set up only one time
-        require(multiOwnableCreator == msg.sender);
-        require(owners.length == 0);
-        for(uint256 idx=0; idx < _owners.length; idx++) {
-            require(
-                !ownerRegistry[_owners[idx]] &&
-                _owners[idx] != 0x0 &&
-                _owners[idx] != address(this)
-            );
-            ownerRegistry[_owners[idx]] = true;
-        }
-        owners = _owners;
-    }
-
-    modifier onlyOwner() {
-        require(ownerRegistry[msg.sender] == true);
-        _;
-    }
-
-    function getOwners() public returns (address[]) {
-        return owners;
-    }
-}
-
-contract Ownable {
-  address public owner;
-
-
-  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-
-  /**
-   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
-   * account.
-   */
-  function Ownable() {
-    owner = msg.sender;
-  }
-
-
-  /**
-   * @dev Throws if called by any account other than the owner.
-   */
-  modifier onlyOwner() {
-    require(msg.sender == owner);
-    _;
-  }
-
-
-  /**
-   * @dev Allows the current owner to transfer control of the contract to a newOwner.
-   * @param newOwner The address to transfer ownership to.
-   */
-  function transferOwnership(address newOwner) onlyOwner public {
-    require(newOwner != address(0));
-    OwnershipTransferred(owner, newOwner);
-    owner = newOwner;
-  }
-
-}
-
-contract ERC20Basic {
-  uint256 public totalSupply;
-  function balanceOf(address who) public constant returns (uint256);
-  function transfer(address to, uint256 value) public returns (bool);
-  event Transfer(address indexed from, address indexed to, uint256 value);
-}
-
-contract ERC20 is ERC20Basic {
-  function allowance(address owner, address spender) public constant returns (uint256);
-  function transferFrom(address from, address to, uint256 value) public returns (bool);
-  function approve(address spender, uint256 value) public returns (bool);
-  event Approval(address indexed owner, address indexed spender, uint256 value);
-}
+pragma solidity ^0.4.18;
 
 library SafeMath {
   function mul(uint256 a, uint256 b) internal constant returns (uint256) {
@@ -109,6 +24,44 @@ library SafeMath {
     assert(c >= a);
     return c;
   }
+}
+
+contract ERC20Basic {
+  uint256 public totalSupply;
+  function balanceOf(address who) public constant returns (uint256);
+  function transfer(address to, uint256 value) public returns (bool);
+  event Transfer(address indexed from, address indexed to, uint256 value);
+}
+
+contract BasicToken is ERC20Basic {
+  using SafeMath for uint256;
+
+  mapping(address => uint256) balances;
+
+  /**
+  * @dev transfer token for a specified address
+  * @param _to The address to transfer to.
+  * @param _value The amount to be transferred.
+  */
+  function transfer(address _to, uint256 _value) public returns (bool) {
+    require(_to != address(0));
+
+    // SafeMath.sub will throw if there is not enough balance.
+    balances[msg.sender] = balances[msg.sender].sub(_value);
+    balances[_to] = balances[_to].add(_value);
+    Transfer(msg.sender, _to, _value);
+    return true;
+  }
+
+  /**
+  * @dev Gets the balance of the specified address.
+  * @param _owner The address to query the the balance of.
+  * @return An uint256 representing the amount owned by the passed address.
+  */
+  function balanceOf(address _owner) public constant returns (uint256 balance) {
+    return balances[_owner];
+  }
+
 }
 
 contract IBallot {
@@ -229,44 +182,6 @@ contract IBallot {
     
 }
 
-contract RefundInvestorsBallot is IBallot {
-
-    uint256 public initialQuorumPercent = 51;
-    uint256 public requiredMajorityPercent = 65;
-
-    function RefundInvestorsBallot(address _tokenContract) {
-        tokenContract = EthearnalRepToken(_tokenContract);
-        proxyVotingContract = VotingProxy(msg.sender);
-    }
-
-    function decide() internal {
-        uint256 quorumPercent = getQuorumPercent();
-        uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
-        uint256 soFarVoted = yesVoteSum.add(noVoteSum);
-        if (soFarVoted >= quorum) {
-            uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
-            if (percentYes >= requiredMajorityPercent) {
-                // does not matter if it would be greater than weiRaised
-                proxyVotingContract.proxyEnableRefunds();
-                FinishBallot(now);
-                isVotingActive = false;
-            } else {
-                // do nothing, just deactivate voting
-                isVotingActive = false;
-            }
-        }
-    }
-    
-    function getQuorumPercent() public constant returns (uint256) {
-        uint256 isMonthPassed = getTime().sub(ballotStarted).div(5 weeks);
-        if(isMonthPassed == 1){
-            return 0;
-        }
-        return initialQuorumPercent;
-    }
-    
-}
-
 contract Ballot is IBallot {
 
     uint256 public initialQuorumPercent = 51;
@@ -292,217 +207,38 @@ contract Ballot is IBallot {
     
 }
 
-contract VotingProxy is Ownable {
-    using SafeMath for uint256;    
-    Treasury public treasuryContract;
-    EthearnalRepToken public tokenContract;
-    Ballot public currentIncreaseWithdrawalTeamBallot;
-    RefundInvestorsBallot public currentRefundInvestorsBallot;
+contract MultiOwnable {
+    mapping (address => bool) public ownerRegistry;
+    address[] owners;
+    address multiOwnableCreator = 0x0;
 
-    function  VotingProxy(address _treasuryContract, address _tokenContract) {
-        treasuryContract = Treasury(_treasuryContract);
-        tokenContract = EthearnalRepToken(_tokenContract);
+    function MultiOwnable() {
+        multiOwnableCreator = msg.sender;
     }
 
-    function startincreaseWithdrawalTeam() onlyOwner {
-        require(treasuryContract.isCrowdsaleFinished());
-        require(address(currentRefundInvestorsBallot) == 0x0 || currentRefundInvestorsBallot.isVotingActive() == false);
-        if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
-            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
-        } else {
-            require(getDaysPassedSinceLastTeamFundsBallot() > 2);
-            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
+    function setupOwners(address[] _owners) {
+        // Owners are allowed to be set up only one time
+        require(multiOwnableCreator == msg.sender);
+        require(owners.length == 0);
+        for(uint256 idx=0; idx < _owners.length; idx++) {
+            require(
+                !ownerRegistry[_owners[idx]] &&
+                _owners[idx] != 0x0 &&
+                _owners[idx] != address(this)
+            );
+            ownerRegistry[_owners[idx]] = true;
         }
+        owners = _owners;
     }
 
-    function startRefundInvestorsBallot() public {
-        require(treasuryContract.isCrowdsaleFinished());
-        require(address(currentIncreaseWithdrawalTeamBallot) == 0x0 || currentIncreaseWithdrawalTeamBallot.isVotingActive() == false);
-        if(address(currentRefundInvestorsBallot) == 0x0) {
-            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
-        } else {
-            require(getDaysPassedSinceLastRefundBallot() > 2);
-            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
-        }
+    modifier onlyOwner() {
+        require(ownerRegistry[msg.sender] == true);
+        _;
     }
 
-    function getDaysPassedSinceLastRefundBallot() public constant returns(uint256) {
-        return getTime().sub(currentRefundInvestorsBallot.ballotStarted()).div(1 days);
+    function getOwners() public returns (address[]) {
+        return owners;
     }
-
-    function getDaysPassedSinceLastTeamFundsBallot() public constant returns(uint256) {
-        return getTime().sub(currentIncreaseWithdrawalTeamBallot.ballotStarted()).div(1 days);
-    }
-
-    function proxyIncreaseWithdrawalChunk() public {
-        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot));
-        treasuryContract.increaseWithdrawalChunk();
-    }
-
-    function proxyEnableRefunds() public {
-        require(msg.sender == address(currentRefundInvestorsBallot));
-        treasuryContract.enableRefunds();
-    }
-
-    function() {
-        revert();
-    }
-
-    function getTime() internal returns (uint256) {
-        // Just returns `now` value
-        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
-        // to allow testing contract behaviour at different time moments
-        return now;
-    }
-
-
-}
-
-contract BasicToken is ERC20Basic {
-  using SafeMath for uint256;
-
-  mapping(address => uint256) balances;
-
-  /**
-  * @dev transfer token for a specified address
-  * @param _to The address to transfer to.
-  * @param _value The amount to be transferred.
-  */
-  function transfer(address _to, uint256 _value) public returns (bool) {
-    require(_to != address(0));
-
-    // SafeMath.sub will throw if there is not enough balance.
-    balances[msg.sender] = balances[msg.sender].sub(_value);
-    balances[_to] = balances[_to].add(_value);
-    Transfer(msg.sender, _to, _value);
-    return true;
-  }
-
-  /**
-  * @dev Gets the balance of the specified address.
-  * @param _owner The address to query the the balance of.
-  * @return An uint256 representing the amount owned by the passed address.
-  */
-  function balanceOf(address _owner) public constant returns (uint256 balance) {
-    return balances[_owner];
-  }
-
-}
-
-contract StandardToken is ERC20, BasicToken {
-
-  mapping (address => mapping (address => uint256)) allowed;
-
-
-  /**
-   * @dev Transfer tokens from one address to another
-   * @param _from address The address which you want to send tokens from
-   * @param _to address The address which you want to transfer to
-   * @param _value uint256 the amount of tokens to be transferred
-   */
-  function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-    require(_to != address(0));
-
-    uint256 _allowance = allowed[_from][msg.sender];
-
-    // Check is not needed because sub(_allowance, _value) will already throw if this condition is not met
-    // require (_value <= _allowance);
-
-    balances[_from] = balances[_from].sub(_value);
-    balances[_to] = balances[_to].add(_value);
-    allowed[_from][msg.sender] = _allowance.sub(_value);
-    Transfer(_from, _to, _value);
-    return true;
-  }
-
-  /**
-   * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
-   *
-   * Beware that changing an allowance with this method brings the risk that someone may use both the old
-   * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-   * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
-   * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-   * @param _spender The address which will spend the funds.
-   * @param _value The amount of tokens to be spent.
-   */
-  function approve(address _spender, uint256 _value) public returns (bool) {
-    allowed[msg.sender][_spender] = _value;
-    Approval(msg.sender, _spender, _value);
-    return true;
-  }
-
-  /**
-   * @dev Function to check the amount of tokens that an owner allowed to a spender.
-   * @param _owner address The address which owns the funds.
-   * @param _spender address The address which will spend the funds.
-   * @return A uint256 specifying the amount of tokens still available for the spender.
-   */
-  function allowance(address _owner, address _spender) public constant returns (uint256 remaining) {
-    return allowed[_owner][_spender];
-  }
-
-  /**
-   * approve should be called when allowed[_spender] == 0. To increment
-   * allowed value is better to use this function to avoid 2 calls (and wait until
-   * the first transaction is mined)
-   * From MonolithDAO Token.sol
-   */
-  function increaseApproval (address _spender, uint _addedValue)
-    returns (bool success) {
-    allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
-    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-    return true;
-  }
-
-  function decreaseApproval (address _spender, uint _subtractedValue)
-    returns (bool success) {
-    uint oldValue = allowed[msg.sender][_spender];
-    if (_subtractedValue > oldValue) {
-      allowed[msg.sender][_spender] = 0;
-    } else {
-      allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
-    }
-    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-    return true;
-  }
-
-}
-
-contract MintableToken is StandardToken, Ownable {
-  event Mint(address indexed to, uint256 amount);
-  event MintFinished();
-
-  bool public mintingFinished = false;
-
-
-  modifier canMint() {
-    require(!mintingFinished);
-    _;
-  }
-
-  /**
-   * @dev Function to mint tokens
-   * @param _to The address that will receive the minted tokens.
-   * @param _amount The amount of tokens to mint.
-   * @return A boolean that indicates if the operation was successful.
-   */
-  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
-    totalSupply = totalSupply.add(_amount);
-    balances[_to] = balances[_to].add(_amount);
-    Mint(_to, _amount);
-    Transfer(0x0, _to, _amount);
-    return true;
-  }
-
-  /**
-   * @dev Function to stop minting new tokens.
-   * @return True if the operation was successful.
-   */
-  function finishMinting() onlyOwner public returns (bool) {
-    mintingFinished = true;
-    MintFinished();
-    return true;
-  }
 }
 
 contract EthearnalRepTokenCrowdsale is MultiOwnable {
@@ -579,15 +315,13 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
     function EthearnalRepTokenCrowdsale(
         address[] _owners,
-        address _token,
         address _treasuryContract,
         address _teamTokenWallet
     ) {
         require(_owners.length > 1);
-        require(_token != 0x0);
         require(_treasuryContract != 0x0);
         require(_teamTokenWallet != 0x0);
-        token = EthearnalRepToken(_token);
+        
         treasuryContract = Treasury(_treasuryContract);
         teamTokenWallet = _teamTokenWallet;
         setupOwners(_owners);
@@ -601,7 +335,15 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         }
     }
 
+    function setTokenContract(address _token) public onlyOwner {
+        require(_token != 0x0 && token == address(0));
+        require(EthearnalRepToken(_token).owner() == address(this));
+        require(EthearnalRepToken(_token).totalSupply() == 0);
+        token = EthearnalRepToken(_token);
+    }
+
     function buyForWhitelisted() public payable {
+        require(token != address(0));
         address whitelistedInvestor = msg.sender;
         require(whitelist[whitelistedInvestor]);
         uint256 weiToBuy = msg.value;
@@ -616,6 +358,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     function buyTokens() public payable {
+        require(token != address(0));
         address recipient = msg.sender;
         State state = getCurrentState();
         uint256 weiToBuy = msg.value;
@@ -783,6 +526,323 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
 }
 
+contract ERC20 is ERC20Basic {
+  function allowance(address owner, address spender) public constant returns (uint256);
+  function transferFrom(address from, address to, uint256 value) public returns (bool);
+  function approve(address spender, uint256 value) public returns (bool);
+  event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+contract Ownable {
+  address public owner;
+
+
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+
+  /**
+   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+   * account.
+   */
+  function Ownable() {
+    owner = msg.sender;
+  }
+
+
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
+
+
+  /**
+   * @dev Allows the current owner to transfer control of the contract to a newOwner.
+   * @param newOwner The address to transfer ownership to.
+   */
+  function transferOwnership(address newOwner) onlyOwner public {
+    require(newOwner != address(0));
+    OwnershipTransferred(owner, newOwner);
+    owner = newOwner;
+  }
+
+}
+
+contract StandardToken is ERC20, BasicToken {
+
+  mapping (address => mapping (address => uint256)) allowed;
+
+
+  /**
+   * @dev Transfer tokens from one address to another
+   * @param _from address The address which you want to send tokens from
+   * @param _to address The address which you want to transfer to
+   * @param _value uint256 the amount of tokens to be transferred
+   */
+  function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+    require(_to != address(0));
+
+    uint256 _allowance = allowed[_from][msg.sender];
+
+    // Check is not needed because sub(_allowance, _value) will already throw if this condition is not met
+    // require (_value <= _allowance);
+
+    balances[_from] = balances[_from].sub(_value);
+    balances[_to] = balances[_to].add(_value);
+    allowed[_from][msg.sender] = _allowance.sub(_value);
+    Transfer(_from, _to, _value);
+    return true;
+  }
+
+  /**
+   * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
+   *
+   * Beware that changing an allowance with this method brings the risk that someone may use both the old
+   * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
+   * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
+   * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+   * @param _spender The address which will spend the funds.
+   * @param _value The amount of tokens to be spent.
+   */
+  function approve(address _spender, uint256 _value) public returns (bool) {
+    allowed[msg.sender][_spender] = _value;
+    Approval(msg.sender, _spender, _value);
+    return true;
+  }
+
+  /**
+   * @dev Function to check the amount of tokens that an owner allowed to a spender.
+   * @param _owner address The address which owns the funds.
+   * @param _spender address The address which will spend the funds.
+   * @return A uint256 specifying the amount of tokens still available for the spender.
+   */
+  function allowance(address _owner, address _spender) public constant returns (uint256 remaining) {
+    return allowed[_owner][_spender];
+  }
+
+  /**
+   * approve should be called when allowed[_spender] == 0. To increment
+   * allowed value is better to use this function to avoid 2 calls (and wait until
+   * the first transaction is mined)
+   * From MonolithDAO Token.sol
+   */
+  function increaseApproval (address _spender, uint _addedValue)
+    returns (bool success) {
+    allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
+    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    return true;
+  }
+
+  function decreaseApproval (address _spender, uint _subtractedValue)
+    returns (bool success) {
+    uint oldValue = allowed[msg.sender][_spender];
+    if (_subtractedValue > oldValue) {
+      allowed[msg.sender][_spender] = 0;
+    } else {
+      allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+    }
+    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    return true;
+  }
+
+}
+
+contract LockableToken is StandardToken, Ownable {
+    bool public isLocked = true;
+    mapping (address => uint256) public lastMovement;
+    event Burn(address _owner, uint256 _amount);
+
+
+    function unlock() public onlyOwner {
+        isLocked = false;
+    }
+
+    function transfer(address _to, uint256 _amount) public returns (bool) {
+        require(!isLocked);
+        lastMovement[msg.sender] = getTime();
+        return super.transfer(_to, _amount);
+    }
+
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+        require(!isLocked);
+        lastMovement[msg.sender] = getTime();
+        super.transferFrom(_from, _to, _value);
+    }
+
+    function approve(address _spender, uint256 _value) public returns (bool) {
+        require(!isLocked);
+        super.approve(_spender, _value);
+    }
+
+    function burnFrom(address _from, uint256 _value) public  returns (bool) {
+        require(_value <= balances[_from]);
+        require(_value <= allowed[_from][msg.sender]);
+        balances[_from] = balances[_from].sub(_value);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+
+        totalSupply = totalSupply.sub(_value);
+        Burn(_from, _value);
+        return true;
+    }
+
+    function getTime() internal returns (uint256) {
+        // Just returns `now` value
+        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
+        // to allow testing contract behaviour at different time moments
+        return now;
+    }
+
+}
+
+contract MintableToken is StandardToken, Ownable {
+  event Mint(address indexed to, uint256 amount);
+  event MintFinished();
+
+  bool public mintingFinished = false;
+
+
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  /**
+   * @dev Function to mint tokens
+   * @param _to The address that will receive the minted tokens.
+   * @param _amount The amount of tokens to mint.
+   * @return A boolean that indicates if the operation was successful.
+   */
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
+    totalSupply = totalSupply.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    Mint(_to, _amount);
+    Transfer(0x0, _to, _amount);
+    return true;
+  }
+
+  /**
+   * @dev Function to stop minting new tokens.
+   * @return True if the operation was successful.
+   */
+  function finishMinting() onlyOwner public returns (bool) {
+    mintingFinished = true;
+    MintFinished();
+    return true;
+  }
+}
+
+contract EthearnalRepToken is MintableToken, LockableToken {
+    string public constant name = 'Ethearnal Rep Token';
+    string public constant symbol = 'ERT';
+    uint256 public constant decimals = 18;
+}
+
+contract VotingProxy is Ownable {
+    using SafeMath for uint256;    
+    Treasury public treasuryContract;
+    EthearnalRepToken public tokenContract;
+    Ballot public currentIncreaseWithdrawalTeamBallot;
+    RefundInvestorsBallot public currentRefundInvestorsBallot;
+
+    function  VotingProxy(address _treasuryContract, address _tokenContract) {
+        treasuryContract = Treasury(_treasuryContract);
+        tokenContract = EthearnalRepToken(_tokenContract);
+    }
+
+    function startincreaseWithdrawalTeam() onlyOwner {
+        require(treasuryContract.isCrowdsaleFinished());
+        require(address(currentRefundInvestorsBallot) == 0x0 || currentRefundInvestorsBallot.isVotingActive() == false);
+        if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
+            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
+        } else {
+            require(getDaysPassedSinceLastTeamFundsBallot() > 2);
+            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
+        }
+    }
+
+    function startRefundInvestorsBallot() public {
+        require(treasuryContract.isCrowdsaleFinished());
+        require(address(currentIncreaseWithdrawalTeamBallot) == 0x0 || currentIncreaseWithdrawalTeamBallot.isVotingActive() == false);
+        if(address(currentRefundInvestorsBallot) == 0x0) {
+            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
+        } else {
+            require(getDaysPassedSinceLastRefundBallot() > 2);
+            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
+        }
+    }
+
+    function getDaysPassedSinceLastRefundBallot() public constant returns(uint256) {
+        return getTime().sub(currentRefundInvestorsBallot.ballotStarted()).div(1 days);
+    }
+
+    function getDaysPassedSinceLastTeamFundsBallot() public constant returns(uint256) {
+        return getTime().sub(currentIncreaseWithdrawalTeamBallot.ballotStarted()).div(1 days);
+    }
+
+    function proxyIncreaseWithdrawalChunk() public {
+        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot));
+        treasuryContract.increaseWithdrawalChunk();
+    }
+
+    function proxyEnableRefunds() public {
+        require(msg.sender == address(currentRefundInvestorsBallot));
+        treasuryContract.enableRefunds();
+    }
+
+    function() {
+        revert();
+    }
+
+    function getTime() internal returns (uint256) {
+        // Just returns `now` value
+        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
+        // to allow testing contract behaviour at different time moments
+        return now;
+    }
+
+
+}
+
+contract RefundInvestorsBallot is IBallot {
+
+    uint256 public initialQuorumPercent = 51;
+    uint256 public requiredMajorityPercent = 65;
+
+    function RefundInvestorsBallot(address _tokenContract) {
+        tokenContract = EthearnalRepToken(_tokenContract);
+        proxyVotingContract = VotingProxy(msg.sender);
+    }
+
+    function decide() internal {
+        uint256 quorumPercent = getQuorumPercent();
+        uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
+        uint256 soFarVoted = yesVoteSum.add(noVoteSum);
+        if (soFarVoted >= quorum) {
+            uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
+            if (percentYes >= requiredMajorityPercent) {
+                // does not matter if it would be greater than weiRaised
+                proxyVotingContract.proxyEnableRefunds();
+                FinishBallot(now);
+                isVotingActive = false;
+            } else {
+                // do nothing, just deactivate voting
+                isVotingActive = false;
+            }
+        }
+    }
+    
+    function getQuorumPercent() public constant returns (uint256) {
+        uint256 isMonthPassed = getTime().sub(ballotStarted).div(5 weeks);
+        if(isMonthPassed == 1){
+            return 0;
+        }
+        return initialQuorumPercent;
+    }
+    
+}
+
 contract Treasury is MultiOwnable {
     using SafeMath for uint256;
 
@@ -911,58 +971,5 @@ contract Treasury is MultiOwnable {
         uint _quotient =  ((_numerator / denominator) + 5) / 10;
         return ( _quotient);
     }
-}
-
-contract LockableToken is StandardToken, Ownable {
-    bool public isLocked = true;
-    mapping (address => uint256) public lastMovement;
-    event Burn(address _owner, uint256 _amount);
-
-
-    function unlock() public onlyOwner {
-        isLocked = false;
-    }
-
-    function transfer(address _to, uint256 _amount) public returns (bool) {
-        require(!isLocked);
-        lastMovement[msg.sender] = getTime();
-        return super.transfer(_to, _amount);
-    }
-
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-        require(!isLocked);
-        lastMovement[msg.sender] = getTime();
-        super.transferFrom(_from, _to, _value);
-    }
-
-    function approve(address _spender, uint256 _value) public returns (bool) {
-        require(!isLocked);
-        super.approve(_spender, _value);
-    }
-
-    function burnFrom(address _from, uint256 _value) public  returns (bool) {
-        require(_value <= balances[_from]);
-        require(_value <= allowed[_from][msg.sender]);
-        balances[_from] = balances[_from].sub(_value);
-        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-
-        totalSupply = totalSupply.sub(_value);
-        Burn(_from, _value);
-        return true;
-    }
-
-    function getTime() internal returns (uint256) {
-        // Just returns `now` value
-        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
-        // to allow testing contract behaviour at different time moments
-        return now;
-    }
-
-}
-
-contract EthearnalRepToken is MintableToken, LockableToken {
-    string public constant name = 'Ethearnal Rep Token';
-    string public constant symbol = 'ERT';
-    uint256 public constant decimals = 18;
 }
 

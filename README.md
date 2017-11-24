@@ -1,3 +1,6 @@
+# Dependencies:
+Used https://github.com/OpenZeppelin/zeppelin-solidity/commit/725ed40a57e8973b3ae6e2f39f9c887d0056ca39 
+
 # To deploy:
 1. run `make_flat.sh`
 2. Deploy `EthearnalRepToken_flat.sol`
