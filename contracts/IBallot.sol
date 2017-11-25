@@ -87,6 +87,7 @@ contract IBallot {
         } else {
             decide();
         }
+        votesByAddress[msg.sender] = true;
     }
 
     function decide() internal {

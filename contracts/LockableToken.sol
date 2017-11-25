@@ -14,12 +14,14 @@ contract LockableToken is StandardToken, Ownable {
     function transfer(address _to, uint256 _amount) public returns (bool) {
         require(!isLocked);
         lastMovement[msg.sender] = getTime();
+        lastMovement[_to] = getTime();
         return super.transfer(_to, _amount);
     }
 
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
         require(!isLocked);
-        lastMovement[msg.sender] = getTime();
+        lastMovement[_from] = getTime();
+        lastMovement[_to] = getTime();
         super.transferFrom(_from, _to, _value);
     }
 
