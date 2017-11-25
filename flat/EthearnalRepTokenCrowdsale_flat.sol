@@ -1,12 +1,5 @@
 pragma solidity ^0.4.18;
 
-contract ERC20Basic {
-  uint256 public totalSupply;
-  function balanceOf(address who) public constant returns (uint256);
-  function transfer(address to, uint256 value) public returns (bool);
-  event Transfer(address indexed from, address indexed to, uint256 value);
-}
-
 contract Ownable {
   address public owner;
 
@@ -44,11 +37,253 @@ contract Ownable {
 
 }
 
-contract ERC20 is ERC20Basic {
-  function allowance(address owner, address spender) public constant returns (uint256);
-  function transferFrom(address from, address to, uint256 value) public returns (bool);
-  function approve(address spender, uint256 value) public returns (bool);
-  event Approval(address indexed owner, address indexed spender, uint256 value);
+library SafeMath {
+  function mul(uint256 a, uint256 b) internal constant returns (uint256) {
+    uint256 c = a * b;
+    assert(a == 0 || c / a == b);
+    return c;
+  }
+
+  function div(uint256 a, uint256 b) internal constant returns (uint256) {
+    // assert(b > 0); // Solidity automatically throws when dividing by 0
+    uint256 c = a / b;
+    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+    return c;
+  }
+
+  function sub(uint256 a, uint256 b) internal constant returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  function add(uint256 a, uint256 b) internal constant returns (uint256) {
+    uint256 c = a + b;
+    assert(c >= a);
+    return c;
+  }
+}
+
+contract VotingProxy is Ownable {
+    using SafeMath for uint256;    
+    Treasury public treasuryContract;
+    EthearnalRepToken public tokenContract;
+    Ballot public currentIncreaseWithdrawalTeamBallot;
+    RefundInvestorsBallot public currentRefundInvestorsBallot;
+
+    function  VotingProxy(address _treasuryContract, address _tokenContract) {
+        treasuryContract = Treasury(_treasuryContract);
+        tokenContract = EthearnalRepToken(_tokenContract);
+    }
+
+    function startincreaseWithdrawalTeam() onlyOwner {
+        require(treasuryContract.isCrowdsaleFinished());
+        require(address(currentRefundInvestorsBallot) == 0x0 || currentRefundInvestorsBallot.isVotingActive() == false);
+        if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
+            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
+        } else {
+            require(getDaysPassedSinceLastTeamFundsBallot() > 2);
+            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
+        }
+    }
+
+    function startRefundInvestorsBallot() public {
+        require(treasuryContract.isCrowdsaleFinished());
+        require(address(currentIncreaseWithdrawalTeamBallot) == 0x0 || currentIncreaseWithdrawalTeamBallot.isVotingActive() == false);
+        if(address(currentRefundInvestorsBallot) == 0x0) {
+            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
+        } else {
+            require(getDaysPassedSinceLastRefundBallot() > 2);
+            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
+        }
+    }
+
+    function getDaysPassedSinceLastRefundBallot() public constant returns(uint256) {
+        return getTime().sub(currentRefundInvestorsBallot.ballotStarted()).div(1 days);
+    }
+
+    function getDaysPassedSinceLastTeamFundsBallot() public constant returns(uint256) {
+        return getTime().sub(currentIncreaseWithdrawalTeamBallot.ballotStarted()).div(1 days);
+    }
+
+    function proxyIncreaseWithdrawalChunk() public {
+        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot));
+        treasuryContract.increaseWithdrawalChunk();
+    }
+
+    function proxyEnableRefunds() public {
+        require(msg.sender == address(currentRefundInvestorsBallot));
+        treasuryContract.enableRefunds();
+    }
+
+    function() {
+        revert();
+    }
+
+    function getTime() internal returns (uint256) {
+        // Just returns `now` value
+        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
+        // to allow testing contract behaviour at different time moments
+        return now;
+    }
+
+
+}
+
+contract IBallot {
+    using SafeMath for uint256;
+    EthearnalRepToken public tokenContract;
+
+    // Date when vote has started
+    uint256 public ballotStarted;
+
+    // Registry of votes
+    mapping(address => bool) public votesByAddress;
+
+    // Sum of weights of YES votes
+    uint256 public yesVoteSum = 0;
+
+    // Sum of weights of NO votes
+    uint256 public noVoteSum = 0;
+
+    // Length of `voters`
+    uint256 public votersLength = 0;
+
+    uint256 public initialQuorumPercent = 51;
+
+    VotingProxy public proxyVotingContract;
+
+    // Tells if voting process is active
+    bool public isVotingActive = false;
+
+    event FinishBallot(uint256 _time);
+    
+    modifier onlyWhenBallotStarted {
+        require(ballotStarted != 0);
+        _;
+    }
+    
+    function startBallot() public {
+        ballotStarted = getTime();
+        isVotingActive = true;
+    }
+
+    function vote(bytes _vote) public onlyWhenBallotStarted {
+        require(_vote.length > 0);
+        if (isDataYes(_vote)) {
+            processVote(true);
+        } else if (isDataNo(_vote)) {
+            processVote(false);
+        }
+    }
+
+    function isDataYes(bytes data) public constant returns (bool) {
+        // compare data with "YES" string
+        return (
+            data.length == 3 &&
+            (data[0] == 0x59 || data[0] == 0x79) &&
+            (data[1] == 0x45 || data[1] == 0x65) &&
+            (data[2] == 0x53 || data[2] == 0x73)
+        );
+    }
+
+    // TESTED
+    function isDataNo(bytes data) public constant returns (bool) {
+        // compare data with "NO" string
+        return (
+            data.length == 2 &&
+            (data[0] == 0x4e || data[0] == 0x6e) &&
+            (data[1] == 0x4f || data[1] == 0x6f)
+        );
+    }
+    
+    function processVote(bool isYes) internal {
+        require(isVotingActive);
+        require(!votesByAddress[msg.sender]);
+        votersLength = votersLength.add(1);
+        uint256 voteWeight = tokenContract.balanceOf(msg.sender);
+        if (isYes) {
+            yesVoteSum = yesVoteSum.add(voteWeight);
+        } else {
+            noVoteSum = noVoteSum.add(voteWeight);
+        }
+        require(getTime().sub(tokenContract.lastMovement(msg.sender)) > 7 days);
+        uint256 quorumPercent = getQuorumPercent();
+        if (quorumPercent == 0) {
+            isVotingActive = false;
+        } else {
+            decide();
+        }
+        votesByAddress[msg.sender] = true;
+    }
+
+    function decide() internal {
+        uint256 quorumPercent = getQuorumPercent();
+        uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
+        uint256 soFarVoted = yesVoteSum.add(noVoteSum);
+        if (soFarVoted >= quorum) {
+            uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
+            if (percentYes >= initialQuorumPercent) {
+                // does not matter if it would be greater than weiRaised
+                proxyVotingContract.proxyIncreaseWithdrawalChunk();
+                FinishBallot(now);
+                isVotingActive = false;
+            } else {
+                // do nothing, just deactivate voting
+                isVotingActive = false;
+            }
+        }
+        
+    }
+
+    function getQuorumPercent() public constant returns (uint256) {
+
+    }
+
+    function getTime() internal returns (uint256) {
+        // Just returns `now` value
+        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
+        // to allow testing contract behaviour at different time moments
+        return now;
+    }
+    
+}
+
+contract RefundInvestorsBallot is IBallot {
+
+    uint256 public initialQuorumPercent = 51;
+    uint256 public requiredMajorityPercent = 65;
+
+    function RefundInvestorsBallot(address _tokenContract) {
+        tokenContract = EthearnalRepToken(_tokenContract);
+        proxyVotingContract = VotingProxy(msg.sender);
+    }
+
+    function decide() internal {
+        uint256 quorumPercent = getQuorumPercent();
+        uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
+        uint256 soFarVoted = yesVoteSum.add(noVoteSum);
+        if (soFarVoted >= quorum) {
+            uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
+            if (percentYes >= requiredMajorityPercent) {
+                // does not matter if it would be greater than weiRaised
+                proxyVotingContract.proxyEnableRefunds();
+                FinishBallot(now);
+                isVotingActive = false;
+            } else {
+                // do nothing, just deactivate voting
+                isVotingActive = false;
+            }
+        }
+    }
+    
+    function getQuorumPercent() public constant returns (uint256) {
+        uint256 isMonthPassed = getTime().sub(ballotStarted).div(5 weeks);
+        if(isMonthPassed == 1){
+            return 0;
+        }
+        return initialQuorumPercent;
+    }
+    
 }
 
 contract MultiOwnable {
@@ -83,32 +318,6 @@ contract MultiOwnable {
     function getOwners() public returns (address[]) {
         return owners;
     }
-}
-
-library SafeMath {
-  function mul(uint256 a, uint256 b) internal constant returns (uint256) {
-    uint256 c = a * b;
-    assert(a == 0 || c / a == b);
-    return c;
-  }
-
-  function div(uint256 a, uint256 b) internal constant returns (uint256) {
-    // assert(b > 0); // Solidity automatically throws when dividing by 0
-    uint256 c = a / b;
-    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-    return c;
-  }
-
-  function sub(uint256 a, uint256 b) internal constant returns (uint256) {
-    assert(b <= a);
-    return a - b;
-  }
-
-  function add(uint256 a, uint256 b) internal constant returns (uint256) {
-    uint256 c = a + b;
-    assert(c >= a);
-    return c;
-  }
 }
 
 contract EthearnalRepTokenCrowdsale is MultiOwnable {
@@ -209,6 +418,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(_token != 0x0 && token == address(0));
         require(EthearnalRepToken(_token).owner() == address(this));
         require(EthearnalRepToken(_token).totalSupply() == 0);
+        require(EthearnalRepToken(_token).isLocked());
         token = EthearnalRepToken(_token);
     }
 
@@ -396,114 +606,96 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
 
 }
 
-contract IBallot {
+contract Treasury is MultiOwnable {
     using SafeMath for uint256;
+
+    // Total amount of ether withdrawed
+    uint256 public weiWithdrawed = 0;
+
+    // Total amount of ther unlocked
+    uint256 public weiUnlocked = 0;
+
+    // Wallet withdraw is locked till end of crowdsale
+    bool public isCrowdsaleFinished = false;
+
+    // Withdrawed team funds go to this wallet
+    address teamWallet = 0x0;
+
+    // Crowdsale contract address
+    EthearnalRepTokenCrowdsale public crowdsaleContract;
     EthearnalRepToken public tokenContract;
+    bool public isRefundsEnabled = false;
 
-    // Date when vote has started
-    uint256 public ballotStarted;
+    // Amount of ether that could be withdrawed each withdraw iteration
+    uint256 public withdrawChunk = 0;
+    VotingProxy public votingProxyContract;
 
-    // Registry of votes
-    mapping(address => bool) public votesByAddress;
 
-    // Sum of weights of YES votes
-    uint256 public yesVoteSum = 0;
+    event Deposit(uint256 amount);
+    event Withdraw(uint256 amount);
+    event UnlockWei(uint256 amount);
+    event RefundedInvestor(address investor, uint256 amountRefunded, uint256 tokensBurn);
 
-    // Sum of weights of NO votes
-    uint256 public noVoteSum = 0;
-
-    // Length of `voters`
-    uint256 public votersLength = 0;
-
-    uint256 public initialQuorumPercent = 51;
-
-    VotingProxy public proxyVotingContract;
-
-    // Tells if voting process is active
-    bool public isVotingActive = false;
-
-    event FinishBallot(uint256 _time);
-    
-    modifier onlyWhenBallotStarted {
-        require(ballotStarted != 0);
-        _;
-    }
-    
-    function startBallot() public {
-        ballotStarted = getTime();
-        isVotingActive = true;
-    }
-
-    function vote(bytes _vote) public onlyWhenBallotStarted {
-        require(_vote.length > 0);
-        if (isDataYes(_vote)) {
-            processVote(true);
-        } else if (isDataNo(_vote)) {
-            processVote(false);
-        }
-    }
-
-    function isDataYes(bytes data) public constant returns (bool) {
-        // compare data with "YES" string
-        return (
-            data.length == 3 &&
-            (data[0] == 0x59 || data[0] == 0x79) &&
-            (data[1] == 0x45 || data[1] == 0x65) &&
-            (data[2] == 0x53 || data[2] == 0x73)
-        );
+    function Treasury(address _teamWallet) public {
+        require(_teamWallet != 0x0);
+        // TODO: check address integrity
+        teamWallet = _teamWallet;
     }
 
     // TESTED
-    function isDataNo(bytes data) public constant returns (bool) {
-        // compare data with "NO" string
-        return (
-            data.length == 2 &&
-            (data[0] == 0x4e || data[0] == 0x6e) &&
-            (data[1] == 0x4f || data[1] == 0x6f)
-        );
-    }
-    
-    function processVote(bool isYes) internal {
-        require(isVotingActive);
-        require(!votesByAddress[msg.sender]);
-        votersLength = votersLength.add(1);
-        uint256 voteWeight = tokenContract.balanceOf(msg.sender);
-        if (isYes) {
-            yesVoteSum = yesVoteSum.add(voteWeight);
-        } else {
-            noVoteSum = noVoteSum.add(voteWeight);
-        }
-        require(getTime().sub(tokenContract.lastMovement(msg.sender)) > 7 days);
-        uint256 quorumPercent = getQuorumPercent();
-        if (quorumPercent == 0) {
-            isVotingActive = false;
-        } else {
-            decide();
-        }
-        votesByAddress[msg.sender] = true;
+    function() public payable {
+        require(msg.sender == address(crowdsaleContract));
+        Deposit(msg.value);
     }
 
-    function decide() internal {
-        uint256 quorumPercent = getQuorumPercent();
-        uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
-        uint256 soFarVoted = yesVoteSum.add(noVoteSum);
-        if (soFarVoted >= quorum) {
-            uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
-            if (percentYes >= initialQuorumPercent) {
-                // does not matter if it would be greater than weiRaised
-                proxyVotingContract.proxyIncreaseWithdrawalChunk();
-                FinishBallot(now);
-                isVotingActive = false;
-            } else {
-                // do nothing, just deactivate voting
-                isVotingActive = false;
-            }
-        }
-        
+    function setVotingProxy(address _votingProxyContract) public onlyOwner {
+        require(votingProxyContract == address(0x0));
+        votingProxyContract = VotingProxy(_votingProxyContract);
     }
 
-    function getQuorumPercent() public constant returns (uint256) {
+    // TESTED
+    function setCrowdsaleContract(address _address) public onlyOwner {
+        // Could be set only once
+        require(crowdsaleContract == address(0x0));
+        require(_address != 0x0);
+        crowdsaleContract = EthearnalRepTokenCrowdsale(_address); 
+    }
 
+    function setTokenContract(address _address) public onlyOwner {
+        // Could be set only once
+        require(tokenContract == address(0x0));
+        require(_address != 0x0);
+        tokenContract = EthearnalRepToken(_address);
+    }
+
+    // TESTED
+    function setCrowdsaleFinished() public {
+        require(crowdsaleContract != address(0x0));
+        require(msg.sender == address(crowdsaleContract));
+        withdrawChunk = getWeiRaised().div(10);
+        weiUnlocked = withdrawChunk;
+        isCrowdsaleFinished = true;
+    }
+
+    // TESTED
+    function withdrawTeamFunds() public onlyOwner {
+        require(isCrowdsaleFinished);
+        require(weiUnlocked > weiWithdrawed);
+        uint256 toWithdraw = weiUnlocked.sub(weiWithdrawed);
+        weiWithdrawed = weiUnlocked;
+        teamWallet.transfer(toWithdraw);
+        Withdraw(toWithdraw);
+    }
+
+    function getWeiRaised() public constant returns(uint256) {
+       return crowdsaleContract.weiRaised();
+    }
+
+    function increaseWithdrawalChunk() {
+        require(isCrowdsaleFinished);
+        require(msg.sender == address(votingProxyContract));
+        weiUnlocked = weiUnlocked.add(withdrawChunk);
+        UnlockWei(weiUnlocked);
     }
 
     function getTime() internal returns (uint256) {
@@ -512,7 +704,36 @@ contract IBallot {
         // to allow testing contract behaviour at different time moments
         return now;
     }
+
+    function enableRefunds() public {
+        require(msg.sender == address(votingProxyContract));
+        isRefundsEnabled = true;
+    }
     
+    function refundInvestor(uint256 _tokensToBurn) public {
+        require(isRefundsEnabled);
+        require(address(tokenContract) != address(0x0));
+        uint256 tokenRate = crowdsaleContract.getTokenRateEther();
+        uint256 toRefund = tokenRate.mul(_tokensToBurn).div(1 ether);
+        uint256 percentLeft = percentLeftFromTotalRaised().mul(100*1000).div(1 ether);
+        toRefund = toRefund.mul(percentLeft).div(100*1000);
+        require(toRefund > 0);
+        tokenContract.burnFrom(msg.sender, _tokensToBurn);
+        msg.sender.transfer(toRefund);
+        RefundedInvestor(msg.sender, toRefund, _tokensToBurn);
+    }
+
+    function percentLeftFromTotalRaised() public constant returns(uint256) {
+        return percent(this.balance, getWeiRaised(), 18);
+    }
+
+    function percent(uint numerator, uint denominator, uint precision) internal constant returns(uint quotient) {
+        // caution, check safe-to-multiply here
+        uint _numerator  = numerator * 10 ** (precision+1);
+        // with rounding of last digit
+        uint _quotient =  ((_numerator / denominator) + 5) / 10;
+        return ( _quotient);
+    }
 }
 
 contract Ballot is IBallot {
@@ -538,6 +759,20 @@ contract Ballot is IBallot {
         }
     }
     
+}
+
+contract ERC20Basic {
+  uint256 public totalSupply;
+  function balanceOf(address who) public constant returns (uint256);
+  function transfer(address to, uint256 value) public returns (bool);
+  event Transfer(address indexed from, address indexed to, uint256 value);
+}
+
+contract ERC20 is ERC20Basic {
+  function allowance(address owner, address spender) public constant returns (uint256);
+  function transferFrom(address from, address to, uint256 value) public returns (bool);
+  function approve(address spender, uint256 value) public returns (bool);
+  event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 contract BasicToken is ERC20Basic {
@@ -650,6 +885,43 @@ contract StandardToken is ERC20, BasicToken {
 
 }
 
+contract MintableToken is StandardToken, Ownable {
+  event Mint(address indexed to, uint256 amount);
+  event MintFinished();
+
+  bool public mintingFinished = false;
+
+
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  /**
+   * @dev Function to mint tokens
+   * @param _to The address that will receive the minted tokens.
+   * @param _amount The amount of tokens to mint.
+   * @return A boolean that indicates if the operation was successful.
+   */
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
+    totalSupply = totalSupply.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    Mint(_to, _amount);
+    Transfer(0x0, _to, _amount);
+    return true;
+  }
+
+  /**
+   * @dev Function to stop minting new tokens.
+   * @return True if the operation was successful.
+   */
+  function finishMinting() onlyOwner public returns (bool) {
+    mintingFinished = true;
+    MintFinished();
+    return true;
+  }
+}
+
 contract LockableToken is StandardToken, Ownable {
     bool public isLocked = true;
     mapping (address => uint256) public lastMovement;
@@ -699,280 +971,9 @@ contract LockableToken is StandardToken, Ownable {
 
 }
 
-contract RefundInvestorsBallot is IBallot {
-
-    uint256 public initialQuorumPercent = 51;
-    uint256 public requiredMajorityPercent = 65;
-
-    function RefundInvestorsBallot(address _tokenContract) {
-        tokenContract = EthearnalRepToken(_tokenContract);
-        proxyVotingContract = VotingProxy(msg.sender);
-    }
-
-    function decide() internal {
-        uint256 quorumPercent = getQuorumPercent();
-        uint256 quorum = quorumPercent.mul(tokenContract.totalSupply()).div(100);
-        uint256 soFarVoted = yesVoteSum.add(noVoteSum);
-        if (soFarVoted >= quorum) {
-            uint256 percentYes = (100 * yesVoteSum).div(soFarVoted);
-            if (percentYes >= requiredMajorityPercent) {
-                // does not matter if it would be greater than weiRaised
-                proxyVotingContract.proxyEnableRefunds();
-                FinishBallot(now);
-                isVotingActive = false;
-            } else {
-                // do nothing, just deactivate voting
-                isVotingActive = false;
-            }
-        }
-    }
-    
-    function getQuorumPercent() public constant returns (uint256) {
-        uint256 isMonthPassed = getTime().sub(ballotStarted).div(5 weeks);
-        if(isMonthPassed == 1){
-            return 0;
-        }
-        return initialQuorumPercent;
-    }
-    
-}
-
-contract MintableToken is StandardToken, Ownable {
-  event Mint(address indexed to, uint256 amount);
-  event MintFinished();
-
-  bool public mintingFinished = false;
-
-
-  modifier canMint() {
-    require(!mintingFinished);
-    _;
-  }
-
-  /**
-   * @dev Function to mint tokens
-   * @param _to The address that will receive the minted tokens.
-   * @param _amount The amount of tokens to mint.
-   * @return A boolean that indicates if the operation was successful.
-   */
-  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
-    totalSupply = totalSupply.add(_amount);
-    balances[_to] = balances[_to].add(_amount);
-    Mint(_to, _amount);
-    Transfer(0x0, _to, _amount);
-    return true;
-  }
-
-  /**
-   * @dev Function to stop minting new tokens.
-   * @return True if the operation was successful.
-   */
-  function finishMinting() onlyOwner public returns (bool) {
-    mintingFinished = true;
-    MintFinished();
-    return true;
-  }
-}
-
 contract EthearnalRepToken is MintableToken, LockableToken {
     string public constant name = 'Ethearnal Rep Token';
     string public constant symbol = 'ERT';
     uint256 public constant decimals = 18;
-}
-
-contract VotingProxy is Ownable {
-    using SafeMath for uint256;    
-    Treasury public treasuryContract;
-    EthearnalRepToken public tokenContract;
-    Ballot public currentIncreaseWithdrawalTeamBallot;
-    RefundInvestorsBallot public currentRefundInvestorsBallot;
-
-    function  VotingProxy(address _treasuryContract, address _tokenContract) {
-        treasuryContract = Treasury(_treasuryContract);
-        tokenContract = EthearnalRepToken(_tokenContract);
-    }
-
-    function startincreaseWithdrawalTeam() onlyOwner {
-        require(treasuryContract.isCrowdsaleFinished());
-        require(address(currentRefundInvestorsBallot) == 0x0 || currentRefundInvestorsBallot.isVotingActive() == false);
-        if(address(currentIncreaseWithdrawalTeamBallot) == 0x0) {
-            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
-        } else {
-            require(getDaysPassedSinceLastTeamFundsBallot() > 2);
-            currentIncreaseWithdrawalTeamBallot =  new Ballot(tokenContract);
-        }
-    }
-
-    function startRefundInvestorsBallot() public {
-        require(treasuryContract.isCrowdsaleFinished());
-        require(address(currentIncreaseWithdrawalTeamBallot) == 0x0 || currentIncreaseWithdrawalTeamBallot.isVotingActive() == false);
-        if(address(currentRefundInvestorsBallot) == 0x0) {
-            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
-        } else {
-            require(getDaysPassedSinceLastRefundBallot() > 2);
-            currentRefundInvestorsBallot =  new RefundInvestorsBallot(tokenContract);
-        }
-    }
-
-    function getDaysPassedSinceLastRefundBallot() public constant returns(uint256) {
-        return getTime().sub(currentRefundInvestorsBallot.ballotStarted()).div(1 days);
-    }
-
-    function getDaysPassedSinceLastTeamFundsBallot() public constant returns(uint256) {
-        return getTime().sub(currentIncreaseWithdrawalTeamBallot.ballotStarted()).div(1 days);
-    }
-
-    function proxyIncreaseWithdrawalChunk() public {
-        require(msg.sender == address(currentIncreaseWithdrawalTeamBallot));
-        treasuryContract.increaseWithdrawalChunk();
-    }
-
-    function proxyEnableRefunds() public {
-        require(msg.sender == address(currentRefundInvestorsBallot));
-        treasuryContract.enableRefunds();
-    }
-
-    function() {
-        revert();
-    }
-
-    function getTime() internal returns (uint256) {
-        // Just returns `now` value
-        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
-        // to allow testing contract behaviour at different time moments
-        return now;
-    }
-
-
-}
-
-contract Treasury is MultiOwnable {
-    using SafeMath for uint256;
-
-    // Total amount of ether withdrawed
-    uint256 public weiWithdrawed = 0;
-
-    // Total amount of ther unlocked
-    uint256 public weiUnlocked = 0;
-
-    // Wallet withdraw is locked till end of crowdsale
-    bool public isCrowdsaleFinished = false;
-
-    // Withdrawed team funds go to this wallet
-    address teamWallet = 0x0;
-
-    // Crowdsale contract address
-    EthearnalRepTokenCrowdsale public crowdsaleContract;
-    EthearnalRepToken public tokenContract;
-    bool public isRefundsEnabled = false;
-
-    // Amount of ether that could be withdrawed each withdraw iteration
-    uint256 public withdrawChunk = 0;
-    VotingProxy public votingProxyContract;
-
-
-    event Deposit(uint256 amount);
-    event Withdraw(uint256 amount);
-    event UnlockWei(uint256 amount);
-    event RefundedInvestor(address investor, uint256 amountRefunded, uint256 tokensBurn);
-
-    function Treasury(address _teamWallet) public {
-        require(_teamWallet != 0x0);
-        // TODO: check address integrity
-        teamWallet = _teamWallet;
-    }
-
-    // TESTED
-    function() public payable {
-        require(msg.sender == address(crowdsaleContract));
-        Deposit(msg.value);
-    }
-
-    function setVotingProxy(address _votingProxyContract) public onlyOwner {
-        require(votingProxyContract == address(0x0));
-        votingProxyContract = VotingProxy(_votingProxyContract);
-    }
-
-    // TESTED
-    function setCrowdsaleContract(address _address) public onlyOwner {
-        // Could be set only once
-        require(crowdsaleContract == address(0x0));
-        require(_address != 0x0);
-        crowdsaleContract = EthearnalRepTokenCrowdsale(_address); 
-    }
-
-    function setTokenContract(address _address) public onlyOwner {
-        // Could be set only once
-        require(tokenContract == address(0x0));
-        require(_address != 0x0);
-        tokenContract = EthearnalRepToken(_address);
-    }
-
-    // TESTED
-    function setCrowdsaleFinished() public {
-        require(crowdsaleContract != address(0x0));
-        require(msg.sender == address(crowdsaleContract));
-        withdrawChunk = getWeiRaised().div(10);
-        weiUnlocked = withdrawChunk;
-        isCrowdsaleFinished = true;
-    }
-
-    // TESTED
-    function withdrawTeamFunds() public onlyOwner {
-        require(isCrowdsaleFinished);
-        require(weiUnlocked > weiWithdrawed);
-        uint256 toWithdraw = weiUnlocked.sub(weiWithdrawed);
-        weiWithdrawed = weiUnlocked;
-        teamWallet.transfer(toWithdraw);
-        Withdraw(weiUnlocked.sub(weiWithdrawed));
-    }
-
-    function getWeiRaised() public constant returns(uint256) {
-       return crowdsaleContract.weiRaised();
-    }
-
-    function increaseWithdrawalChunk() {
-        require(isCrowdsaleFinished);
-        require(msg.sender == address(votingProxyContract));
-        weiUnlocked = weiUnlocked.add(withdrawChunk);
-        UnlockWei(weiUnlocked);
-    }
-
-    function getTime() internal returns (uint256) {
-        // Just returns `now` value
-        // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
-        // to allow testing contract behaviour at different time moments
-        return now;
-    }
-
-    function enableRefunds() public {
-        require(msg.sender == address(votingProxyContract));
-        isRefundsEnabled = true;
-    }
-    
-    function refundInvestor(uint256 _tokensToBurn) public {
-        require(isRefundsEnabled);
-        require(address(tokenContract) != address(0x0));
-        uint256 tokenRate = crowdsaleContract.getTokenRateEther();
-        uint256 toRefund = tokenRate.mul(_tokensToBurn).div(1 ether);
-        uint256 percentLeft = percentLeftFromTotalRaised().mul(100*1000).div(1 ether);
-        toRefund = toRefund.mul(percentLeft).div(100*1000);
-        require(toRefund > 0);
-        tokenContract.burnFrom(msg.sender, _tokensToBurn);
-        msg.sender.transfer(toRefund);
-        RefundedInvestor(msg.sender, toRefund, _tokensToBurn);
-    }
-
-    function percentLeftFromTotalRaised() public constant returns(uint256) {
-        return percent(this.balance, getWeiRaised(), 18);
-    }
-
-    function percent(uint numerator, uint denominator, uint precision) internal constant returns(uint quotient) {
-        // caution, check safe-to-multiply here
-        uint _numerator  = numerator * 10 ** (precision+1);
-        // with rounding of last digit
-        uint _quotient =  ((_numerator / denominator) + 5) / 10;
-        return ( _quotient);
-    }
 }
 

@@ -84,7 +84,7 @@ contract Treasury is MultiOwnable {
         uint256 toWithdraw = weiUnlocked.sub(weiWithdrawed);
         weiWithdrawed = weiUnlocked;
         teamWallet.transfer(toWithdraw);
-        Withdraw(weiUnlocked.sub(weiWithdrawed));
+        Withdraw(toWithdraw);
     }
 
     function getWeiRaised() public constant returns(uint256) {

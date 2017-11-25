@@ -103,6 +103,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(_token != 0x0 && token == address(0));
         require(EthearnalRepToken(_token).owner() == address(this));
         require(EthearnalRepToken(_token).totalSupply() == 0);
+        require(EthearnalRepToken(_token).isLocked());
         token = EthearnalRepToken(_token);
     }
 

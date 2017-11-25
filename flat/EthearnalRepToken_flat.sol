@@ -40,6 +40,43 @@ contract ERC20 is ERC20Basic {
   event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
+contract Ownable {
+  address public owner;
+
+
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+
+  /**
+   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+   * account.
+   */
+  function Ownable() {
+    owner = msg.sender;
+  }
+
+
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
+
+
+  /**
+   * @dev Allows the current owner to transfer control of the contract to a newOwner.
+   * @param newOwner The address to transfer ownership to.
+   */
+  function transferOwnership(address newOwner) onlyOwner public {
+    require(newOwner != address(0));
+    OwnershipTransferred(owner, newOwner);
+    owner = newOwner;
+  }
+
+}
+
 contract BasicToken is ERC20Basic {
   using SafeMath for uint256;
 
@@ -146,43 +183,6 @@ contract StandardToken is ERC20, BasicToken {
     }
     Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
     return true;
-  }
-
-}
-
-contract Ownable {
-  address public owner;
-
-
-  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-
-  /**
-   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
-   * account.
-   */
-  function Ownable() {
-    owner = msg.sender;
-  }
-
-
-  /**
-   * @dev Throws if called by any account other than the owner.
-   */
-  modifier onlyOwner() {
-    require(msg.sender == owner);
-    _;
-  }
-
-
-  /**
-   * @dev Allows the current owner to transfer control of the contract to a newOwner.
-   * @param newOwner The address to transfer ownership to.
-   */
-  function transferOwnership(address newOwner) onlyOwner public {
-    require(newOwner != address(0));
-    OwnershipTransferred(owner, newOwner);
-    owner = newOwner;
   }
 
 }
