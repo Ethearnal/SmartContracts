@@ -85,7 +85,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(_owners.length > 1);
         require(_treasuryContract != 0x0);
         require(_teamTokenWallet != 0x0);
-        
+        require(Treasury(_treasuryContract).votingProxyContract() != address(0));
+        require(Treasury(_treasuryContract).tokenContract() != address(0));
         treasuryContract = Treasury(_treasuryContract);
         teamTokenWallet = _teamTokenWallet;
         setupOwners(_owners);
@@ -104,6 +105,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(EthearnalRepToken(_token).owner() == address(this));
         require(EthearnalRepToken(_token).totalSupply() == 0);
         require(EthearnalRepToken(_token).isLocked());
+        require(!EthearnalRepToken(_token).mintingFinished());
         token = EthearnalRepToken(_token);
     }
 

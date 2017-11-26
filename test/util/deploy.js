@@ -16,6 +16,9 @@ async function deployTestContracts(accounts) {
     let teamTokenWallet = accounts[2];
     let treasuryContract = await Treasury.new(teamTokenWallet);
     await treasuryContract.setupOwners(owners);
+    let votingProxyContract = await VotingProxy.new(treasuryContract.address, tokenContract.address);
+    await treasuryContract.setVotingProxy(votingProxyContract.address);
+    await treasuryContract.setTokenContract(tokenContract.address);
     let saleContract = await EthearnalRepTokenCrowdsaleMock.new(
         owners,
         treasuryContract.address,
@@ -23,10 +26,7 @@ async function deployTestContracts(accounts) {
     );
     await tokenContract.transferOwnership(saleContract.address);
     await saleContract.setTokenContract(tokenContract.address);
-    let votingProxyContract = await VotingProxy.new(treasuryContract.address, tokenContract.address);
-    await treasuryContract.setVotingProxy(votingProxyContract.address);
     await treasuryContract.setCrowdsaleContract(saleContract.address);
-    await treasuryContract.setTokenContract(tokenContract.address);
     await saleContract.setEtherRateUsd(data.ETHER_RATE_USD);
     return {
         tokenContract,
