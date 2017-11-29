@@ -6,5 +6,5 @@ import './LockableToken.sol';
 contract EthearnalRepToken is MintableToken, LockableToken {
     string public constant name = 'Ethearnal Rep Token';
     string public constant symbol = 'ERT';
-    uint256 public constant decimals = 18;
+    uint8 public constant decimals = 18;
 }

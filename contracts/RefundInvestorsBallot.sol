@@ -12,6 +12,8 @@ contract RefundInvestorsBallot is IBallot {
     function RefundInvestorsBallot(address _tokenContract) {
         tokenContract = EthearnalRepToken(_tokenContract);
         proxyVotingContract = VotingProxy(msg.sender);
+        ballotStarted = getTime();
+        isVotingActive = true;
     }
 
     function decide() internal {

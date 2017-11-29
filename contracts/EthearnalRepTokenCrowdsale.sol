@@ -151,11 +151,6 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         TokenPurchase(recipient, weiToBuy, tokenAmount);
     }
 
-    function setEtherRateUsd(uint256 _rate) public onlyOwner {
-        require(_rate > 0);
-        etherRateUsd = _rate;
-    }
-
     // TEST
     function finalizeByAdmin() public onlyOwner {
         finalize();
@@ -184,7 +179,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     function getTokenAmountForEther(uint256 weiAmount) constant internal returns (uint256) {
         return weiAmount
             .div(getTokenRateEther())
-            .mul(10 ** token.decimals());
+            .mul(10 ** uint256(token.decimals()));
     }
 
     // TESTED

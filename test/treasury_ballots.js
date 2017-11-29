@@ -32,7 +32,7 @@ contract('Treasury [Refund Features]', function (accounts) {
         let ballot = await votingProxyContract.currentRefundInvestorsBallot()
         ballot.should.not.equal('0x0000000000000000000000000000000000000000');
         ballotContract = await Ballot.at(ballot);
-        await ballotContract.startBallot();
+        
         const {logs} = await ballotContract.vote("yes");
         false.should.be.equal(
             await ballotContract.isVotingActive()
@@ -83,7 +83,7 @@ contract('Treasury [Refund Features]', function (accounts) {
         let ballot = await votingProxyContract.currentRefundInvestorsBallot()
         ballot.should.not.equal('0x0000000000000000000000000000000000000000');
         ballotContract = await Ballot.at(ballot);
-        await ballotContract.startBallot();
+        
         const {logs} = await ballotContract.vote("yes");
         false.should.be.equal(
             await ballotContract.isVotingActive()

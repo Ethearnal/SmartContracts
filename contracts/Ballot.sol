@@ -11,6 +11,8 @@ contract Ballot is IBallot {
     function Ballot(address _tokenContract) {
         tokenContract = EthearnalRepToken(_tokenContract);
         proxyVotingContract = VotingProxy(msg.sender);
+        ballotStarted = getTime();
+        isVotingActive = true;
     }
     
     function getQuorumPercent() public constant returns (uint256) {

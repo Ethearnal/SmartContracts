@@ -27,7 +27,6 @@ async function deployTestContracts(accounts) {
     await tokenContract.transferOwnership(saleContract.address);
     await saleContract.setTokenContract(tokenContract.address);
     await treasuryContract.setCrowdsaleContract(saleContract.address);
-    await saleContract.setEtherRateUsd(data.ETHER_RATE_USD);
     return {
         tokenContract,
         saleContract,
