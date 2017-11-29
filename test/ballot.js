@@ -50,7 +50,7 @@ contract('Ballot [Basic Features]', function (accounts) {
             ballotContract = await Ballot.at(ballot);
         })
         it('starts the ballot', async () => {
-            await ballotContract.startBallot();
+            
             true.should.equal(
                 await ballotContract.isVotingActive()
             )
@@ -59,7 +59,7 @@ contract('Ballot [Basic Features]', function (accounts) {
         it('accepts yes vote', async () => {
             let beforeweiUnlocked = await treasuryContract.weiUnlocked();
             let withdrawChunk = await treasuryContract.withdrawChunk();
-            await ballotContract.startBallot();
+            
             await ballotContract.vote("yes");
             let votersLength = await ballotContract.votersLength();
             (1).should.be.equal(
@@ -81,7 +81,7 @@ contract('Ballot [Basic Features]', function (accounts) {
         it('accepts no vote', async () => {
             let beforeweiUnlocked = await treasuryContract.weiUnlocked();
             let withdrawChunk = await treasuryContract.withdrawChunk();
-            await ballotContract.startBallot();
+            
             await ballotContract.vote("NO");
             let votersLength = await ballotContract.votersLength();
             (1).should.be.equal(
@@ -138,7 +138,7 @@ contract('Ballot [Basic Features]', function (accounts) {
         it('majority votes no', async () => {
             let beforeweiUnlocked = await treasuryContract.weiUnlocked();
             let withdrawChunk = await treasuryContract.withdrawChunk();
-            await ballotContract.startBallot();
+            
             await ballotContract.vote("NO");
             let votersLength = await ballotContract.votersLength();
             (1).should.be.equal(
@@ -166,7 +166,7 @@ contract('Ballot [Basic Features]', function (accounts) {
         it('majority yes', async () => {
             let beforeweiUnlocked = await treasuryContract.weiUnlocked();
             let withdrawChunk = await treasuryContract.withdrawChunk();
-            await ballotContract.startBallot();
+            
             await ballotContract.vote("yes");
             let votersLength = await ballotContract.votersLength();
             (1).should.be.equal(
