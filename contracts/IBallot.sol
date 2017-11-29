@@ -99,14 +99,13 @@ contract IBallot {
             } else {
                 // do nothing, just deactivate voting
                 isVotingActive = false;
+                FinishBallot(now);
             }
         }
         
     }
 
-    function getQuorumPercent() public constant returns (uint256) {
-
-    }
+    function getQuorumPercent() public constant returns (uint256);
 
     function getTime() internal returns (uint256) {
         // Just returns `now` value
