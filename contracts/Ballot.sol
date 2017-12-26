@@ -30,6 +30,7 @@ contract Ballot {
     bool public isVotingActive = false;
 
     event FinishBallot(uint256 _time);
+    event Vote(address indexed sender, bytes vote);
     
     modifier onlyWhenBallotStarted {
         require(ballotStarted != 0);
@@ -64,6 +65,7 @@ contract Ballot {
         } else if (isDataNo(_vote)) {
             processVote(false);
         }
+        Vote(msg.sender, _vote);
     }
 
     function isDataYes(bytes data) public constant returns (bool) {

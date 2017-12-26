@@ -32,6 +32,7 @@ contract RefundInvestorsBallot {
     uint256 public requiredMajorityPercent = 65;
 
     event FinishBallot(uint256 _time);
+    event Vote(address indexed sender, bytes vote);
     
     modifier onlyWhenBallotStarted {
         require(ballotStarted != 0);
@@ -45,6 +46,7 @@ contract RefundInvestorsBallot {
         } else if (isDataNo(_vote)) {
             processVote(false);
         }
+        Vote(msg.sender, _vote);
     }
 
     function isDataYes(bytes data) public constant returns (bool) {
