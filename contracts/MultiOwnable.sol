@@ -30,7 +30,7 @@ contract MultiOwnable {
         _;
     }
 
-    function getOwners() public returns (address[]) {
+    function getOwners() public constant returns (address[]) {
         return owners;
     }
 }
