@@ -4,13 +4,13 @@ pragma solidity ^0.4.15;
 contract MultiOwnable {
     mapping (address => bool) public ownerRegistry;
     address[] owners;
-    address multiOwnableCreator = 0x0;
+    address public multiOwnableCreator = 0x0;
 
-    function MultiOwnable() {
+    function MultiOwnable() public {
         multiOwnableCreator = msg.sender;
     }
 
-    function setupOwners(address[] _owners) {
+    function setupOwners(address[] _owners) public {
         // Owners are allowed to be set up only one time
         require(multiOwnableCreator == msg.sender);
         require(owners.length == 0);

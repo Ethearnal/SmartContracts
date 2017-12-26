@@ -2,6 +2,7 @@ pragma solidity ^0.4.15;
 
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 import 'zeppelin-solidity/contracts/token/StandardToken.sol';
+import "zeppelin-solidity/contracts/token/ERC20Basic.sol";
 
 contract LockableToken is StandardToken, Ownable {
     bool public isLocked = true;
@@ -48,6 +49,17 @@ contract LockableToken is StandardToken, Ownable {
         // This function is redefined in EthearnalRepTokenCrowdsaleMock contract
         // to allow testing contract behaviour at different time moments
         return now;
+    }
+
+    function claimTokens(address _token) public onlyOwner {
+        if (_token == 0x0) {
+            owner.transfer(this.balance);
+            return;
+        }
+    
+        ERC20Basic token = ERC20Basic(_token);
+        uint256 balance = token.balanceOf(this);
+        token.transfer(owner, balance);
     }
 
 }

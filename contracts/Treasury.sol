@@ -5,6 +5,8 @@ import './EthearnalRepTokenCrowdsale.sol';
 import './EthearnalRepToken.sol';
 import './VotingProxy.sol';
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
+import "zeppelin-solidity/contracts/token/ERC20Basic.sol";
+
 
 contract Treasury is MultiOwnable {
     using SafeMath for uint256;
@@ -29,12 +31,14 @@ contract Treasury is MultiOwnable {
     // Amount of ether that could be withdrawed each withdraw iteration
     uint256 public withdrawChunk = 0;
     VotingProxy public votingProxyContract;
+    uint256 public refundsIssued = 0;
+    uint256 public percentLeft = 0;
 
 
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
     event UnlockWei(uint256 amount);
-    event RefundedInvestor(address investor, uint256 amountRefunded, uint256 tokensBurn);
+    event RefundedInvestor(address indexed investor, uint256 amountRefunded, uint256 tokensBurn);
 
     function Treasury(address _teamWallet) public {
         require(_teamWallet != 0x0);
@@ -113,13 +117,17 @@ contract Treasury is MultiOwnable {
     function refundInvestor(uint256 _tokensToBurn) public {
         require(isRefundsEnabled);
         require(address(tokenContract) != address(0x0));
+        if (refundsIssued == 0) {
+            percentLeft = percentLeftFromTotalRaised().mul(100*1000).div(1 ether);
+        }
         uint256 tokenRate = crowdsaleContract.getTokenRateEther();
         uint256 toRefund = tokenRate.mul(_tokensToBurn).div(1 ether);
-        uint256 percentLeft = percentLeftFromTotalRaised().mul(100*1000).div(1 ether);
+        
         toRefund = toRefund.mul(percentLeft).div(100*1000);
         require(toRefund > 0);
         tokenContract.burnFrom(msg.sender, _tokensToBurn);
         msg.sender.transfer(toRefund);
+        refundsIssued = refundsIssued.add(1);
         RefundedInvestor(msg.sender, toRefund, _tokensToBurn);
     }
 
@@ -133,5 +141,11 @@ contract Treasury is MultiOwnable {
         // with rounding of last digit
         uint _quotient =  ((_numerator / denominator) + 5) / 10;
         return ( _quotient);
+    }
+
+    function claimTokens(address _token, address _to) public onlyOwner {    
+        ERC20Basic token = ERC20Basic(_token);
+        uint256 balance = token.balanceOf(this);
+        token.transfer(_to, balance);
     }
 }

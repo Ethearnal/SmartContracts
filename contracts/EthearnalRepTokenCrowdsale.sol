@@ -4,6 +4,8 @@ import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import './EthearnalRepToken.sol';
 import './Treasury.sol';
 import "./MultiOwnable.sol";
+import "zeppelin-solidity/contracts/token/ERC20Basic.sol";
+
 
 contract EthearnalRepTokenCrowdsale is MultiOwnable {
     using SafeMath for uint256;
@@ -71,8 +73,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
      * Events
      */
     
-    event ChangeReturn(address recipient, uint256 amount);
-    event TokenPurchase(address buyer, uint256 weiAmount, uint256 tokenAmount);
+    event ChangeReturn(address indexed recipient, uint256 amount);
+    event TokenPurchase(address indexed buyer, uint256 weiAmount, uint256 tokenAmount);
     /* **************
      * Public methods
      */
@@ -83,8 +85,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         address _teamTokenWallet
     ) {
         require(_owners.length > 1);
-        require(_treasuryContract != 0x0);
-        require(_teamTokenWallet != 0x0);
+        require(_treasuryContract != address(0));
+        require(_teamTokenWallet != address(0));
         require(Treasury(_treasuryContract).votingProxyContract() != address(0));
         require(Treasury(_treasuryContract).tokenContract() != address(0));
         treasuryContract = Treasury(_treasuryContract);
@@ -101,7 +103,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     }
 
     function setTokenContract(address _token) public onlyOwner {
-        require(_token != 0x0 && token == address(0));
+        require(_token != address(0) && token == address(0));
         require(EthearnalRepToken(_token).owner() == address(this));
         require(EthearnalRepToken(_token).totalSupply() == 0);
         require(EthearnalRepToken(_token).isLocked());
@@ -119,8 +121,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
         require(tokenAmount > 0);
         weiRaised = weiRaised.add(weiToBuy);
         raisedByAddress[whitelistedInvestor] = raisedByAddress[whitelistedInvestor].add(weiToBuy);
-        assert(token.mint(whitelistedInvestor, tokenAmount));
         forwardFunds(weiToBuy);
+        assert(token.mint(whitelistedInvestor, tokenAmount));
         TokenPurchase(whitelistedInvestor, weiToBuy, tokenAmount);
     }
 
@@ -146,8 +148,8 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
             recipient.transfer(weiToReturn);
             ChangeReturn(recipient, weiToReturn);
         }
-        assert(token.mint(recipient, tokenAmount));
         forwardFunds(weiToBuy);
+        require(token.mint(recipient, tokenAmount));
         TokenPurchase(recipient, weiToBuy, tokenAmount);
     }
 
@@ -256,7 +258,7 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
     // TESTED
     function mintTeamTokens() private {
         // div by 1000 because of 3 decimals digits in teamTokenRatio
-        var tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
+        uint256 tokenAmount = token.totalSupply().mul(teamTokenRatio).div(1000);
         token.mint(teamTokenWallet, tokenAmount);
     }
 
@@ -284,6 +286,17 @@ contract EthearnalRepTokenCrowdsale is MultiOwnable {
                 whitelistedInvestorCounter--;
             }
         }
+    }
+
+    function claimTokens(address _token, address _to) public onlyOwner {
+        if (_token == 0x0) {
+            _to.transfer(this.balance);
+            return;
+        }
+    
+        ERC20Basic token = ERC20Basic(_token);
+        uint256 balance = token.balanceOf(this);
+        token.transfer(_to, balance);
     }
 
 }
