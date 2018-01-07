@@ -9,3 +9,5 @@
 /node_modules/
 /test_disabled/
 /var/
+scripts/.env
+scripts/node_modules

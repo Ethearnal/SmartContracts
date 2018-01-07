@@ -1,0 +1,16 @@
+{
+  "name": "whitelist",
+  "version": "1.0.0",
+  "description": "",
+  "main": "whitelist_signed.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Roman Storm",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^4.0.0",
+    "ethereumjs-tx": "^1.3.3",
+    "web3": "^1.0.0-beta.27"
+  }
+}
